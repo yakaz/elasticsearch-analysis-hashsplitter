@@ -91,7 +91,7 @@ public final class HashSplitterTokenFilter extends TokenFilter {
         termAtt.setEmpty();
         char[] buffer = termAtt.resizeBuffer(1+curGramSize);
         buffer[0] = prefixes.charAt(curPrefix);
-        System.arraycopy(buffer, 1, curTermBuffer, curPos, curGramSize);
+        System.arraycopy(curTermBuffer, curPos, buffer, 1, curGramSize);
         termAtt.setLength(1+curGramSize);
       } else {
         termAtt.copyBuffer(curTermBuffer, curPos, curGramSize);
