@@ -30,9 +30,13 @@ import java.io.Reader;
 
 
 /**
- * Uses the {@link org.apache.lucene.analysis.icu.ICUNormalizer2Filter} to normalize tokens.
+ * Uses the {@link HashSplitterTokenizer} to split tokens.
  *
- * <p>The <tt>name</tt> can be used to provide the type of normalization to perform.
+ * <p>
+ *   The setting <tt>chunk</tt> changes the length of n-grams to genereate.<br/>
+ *   The setting <tt>prefixes</tt> changes the characters to prepend,
+ *   in order to distinguish the original position of the generated tokens.
+ * </p>
  *
  * @author ofavre
  */
@@ -43,8 +47,8 @@ public class HashSplitterTokenizerFactory extends AbstractTokenizerFactory {
 
     @Inject public HashSplitterTokenizerFactory(Index index, @IndexSettings Settings indexSettings, @Assisted String name, @Assisted Settings settings) {
         super(index, indexSettings, name, settings);
-        this.chunkLength = settings.getAsInt("chunk_length", 1);
-        this.prefixes = settings.get("prefixes", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.");
+        this.chunkLength = settings.getAsInt("chunk_length", HashSplitterTokenizer.DEFAULT_CHUNK_LENGTH);
+        this.prefixes = settings.get("prefixes", HashSplitterTokenizer.DEFAULT_PREFIXES);
     }
 
     @Override public Tokenizer create(Reader reader) {

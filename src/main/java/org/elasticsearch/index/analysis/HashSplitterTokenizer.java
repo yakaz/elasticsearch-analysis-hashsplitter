@@ -31,8 +31,9 @@ import java.io.Reader;
  * Tokenizes the input into n-grams of the given size(s).
  */
 public final class HashSplitterTokenizer extends Tokenizer {
-  public static final int DEFAULT_CHUNK_LENGTH= 1;
-  public static final String DEFAULT_PREFIXES = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.";
+
+  public static final int DEFAULT_CHUNK_LENGTH = HashSplitterAnalyzer.DEFAULT_CHUNK_LENGTH;
+  public static final String DEFAULT_PREFIXES  = HashSplitterAnalyzer.DEFAULT_PREFIXES;
 
   private int chunkLength;
   private String prefixes;
@@ -145,5 +146,6 @@ public final class HashSplitterTokenizer extends Tokenizer {
     super.reset();
     started = false;
     pos = 0;
+    prefix = 0;
   }
 }

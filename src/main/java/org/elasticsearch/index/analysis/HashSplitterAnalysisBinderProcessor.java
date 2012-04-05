@@ -31,5 +31,9 @@ public class HashSplitterAnalysisBinderProcessor extends AnalysisModule.Analysis
     @Override public void processTokenizers(TokenizersBindings tokenizersBindings) {
         tokenizersBindings.processTokenizer("hash_splitter", HashSplitterTokenizerFactory.class);
     }
-  
+
+    @Override public void processAnalyzers(AnalyzersBindings analyzersBindings) {
+        analyzersBindings.processAnalyzer("hash_splitter", HashSplitterAnalyzerProviderFactory.DefaultProvider.class);
+    }
+
 }

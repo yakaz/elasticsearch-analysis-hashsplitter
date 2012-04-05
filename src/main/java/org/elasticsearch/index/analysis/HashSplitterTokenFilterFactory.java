@@ -45,8 +45,8 @@ public class HashSplitterTokenFilterFactory extends AbstractTokenFilterFactory {
 
     @Inject public HashSplitterTokenFilterFactory(Index index, @IndexSettings Settings indexSettings, @Assisted String name, @Assisted Settings settings) {
         super(index, indexSettings, name, settings);
-        this.chunkLength = settings.getAsInt("chunk_length", 1);
-        this.prefixes = settings.get("prefixes", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.");
+        this.chunkLength = settings.getAsInt("chunk_length", HashSplitterTokenFilter.DEFAULT_CHUNK_LENGTH);
+        this.prefixes = settings.get("prefixes", HashSplitterTokenFilter.DEFAULT_PREFIXES);
     }
 
     @Override public TokenStream create(TokenStream tokenStream) {

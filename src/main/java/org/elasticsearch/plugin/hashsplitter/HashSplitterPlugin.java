@@ -17,30 +17,46 @@
  * under the License.
  */
 
-package org.elasticsearch.plugin.analysis.hashsplitter;
+package org.elasticsearch.plugin.hashsplitter;
 
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.index.analysis.AnalysisModule;
 import org.elasticsearch.index.analysis.HashSplitterAnalysisBinderProcessor;
+import org.elasticsearch.plugin.mapper.hashsplitter.HashSplitterIndexModule;
 import org.elasticsearch.plugins.AbstractPlugin;
+
+import java.util.Collection;
+
+import static org.elasticsearch.common.collect.Lists.newArrayList;
 
 /**
  * @author ofavre
  */
-public class AnalysisHashSplitterPlugin extends AbstractPlugin {
-
-    @Override public String name() {
-        return "analysis-hashsplitter";
+public class HashSplitterPlugin extends AbstractPlugin {
+    
+    @Override
+    public String name() {
+        return "hashsplitter";
     }
 
-    @Override public String description() {
-        return "Analysis that can split long hash or ids into multiple parts, useful for huge indices";
+    @Override
+    public String description() {
+        return "Analysis and mapper plugin that can split long hash or ids into multiple parts and query it, useful for huge indices";
     }
 
-    @Override public void processModule(Module module) {
+    @Override
+    public void processModule(Module module) {
         if (module instanceof AnalysisModule) {
             AnalysisModule analysisModule = (AnalysisModule) module;
             analysisModule.addProcessor(new HashSplitterAnalysisBinderProcessor());
         }
     }
+
+    @Override
+    public Collection<Class<? extends Module>> indexModules() {
+        Collection<Class<? extends Module>> modules = newArrayList();
+        modules.add(HashSplitterIndexModule.class);
+        return modules;
+    }
+
 }

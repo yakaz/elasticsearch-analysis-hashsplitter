@@ -17,19 +17,20 @@ package org.elasticsearch.index.analysis;
  * limitations under the License.
  */
 
-import java.io.IOException;
-
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+
+import java.io.IOException;
 
 /**
  * Tokenizes the input into n-grams of the given size(s).
  */
 public final class HashSplitterTokenFilter extends TokenFilter {
-  public static final int DEFAULT_CHUNK_LENGTH= 1;
-  public static final String DEFAULT_PREFIXES = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.";
+
+  public static final int DEFAULT_CHUNK_LENGTH = HashSplitterAnalyzer.DEFAULT_CHUNK_LENGTH;
+  public static final String DEFAULT_PREFIXES  = HashSplitterAnalyzer.DEFAULT_PREFIXES;
 
   private int chunkLength;
   private String prefixes;
