@@ -54,7 +54,6 @@ public class HashSplitterTokenizerTests {
     }
 
     protected void closeAnalysis() throws Exception {
-        tokenizer.end();
         tokenizer.close();
         termAttr = null;
         offAttr = null;
@@ -73,6 +72,10 @@ public class HashSplitterTokenizerTests {
             assertThat("at i = " + i, offAttr.endOffset(), equalTo(i+1));
         }
         assertThat(tokenizer.incrementToken(), equalTo(false));
+        tokenizer.end();
+        assertThat("final offset start", offAttr.startOffset(), equalTo(input.length()));
+        assertThat("final offset end", offAttr.endOffset(), equalTo(input.length()));
+
         closeAnalysis();
     }
 
@@ -88,6 +91,66 @@ public class HashSplitterTokenizerTests {
             assertThat("at i = " + i, offAttr.endOffset(), equalTo(i+2));
         }
         assertThat(tokenizer.incrementToken(), equalTo(false));
+        tokenizer.end();
+        assertThat("final offset start", offAttr.startOffset(), equalTo(input.length()));
+        assertThat("final offset end", offAttr.endOffset(), equalTo(input.length()));
+
+        closeAnalysis();
+    }
+
+    @Test
+    public void testIncompleteLastChunk() throws Exception {
+        tokenizer = new HashSplitterTokenizer(null, 2, "ab");
+
+        analyze("001");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a00"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(2));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b1"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(2));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(3));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        tokenizer.end();
+        assertThat("final offset start", offAttr.startOffset(), equalTo(input.length()));
+        assertThat("final offset end", offAttr.endOffset(), equalTo(input.length()));
+
+        closeAnalysis();
+    }
+    
+    @Test
+    public void testReset() throws Exception {
+        tokenizer = new HashSplitterTokenizer(null, 2, "abcd");
+
+        analyze("0011");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a00"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(2));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b11"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(2));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(4));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        tokenizer.end();
+        assertThat("final offset start", offAttr.startOffset(), equalTo(input.length()));
+        assertThat("final offset end", offAttr.endOffset(), equalTo(input.length()));
+
+        analyze("2233");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a22"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(2));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b33"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(2));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(4));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        tokenizer.end();
+        assertThat("final offset start", offAttr.startOffset(), equalTo(input.length()));
+        assertThat("final offset end", offAttr.endOffset(), equalTo(input.length()));
+
         closeAnalysis();
     }
 
@@ -105,6 +168,10 @@ public class HashSplitterTokenizerTests {
             assertThat("at i = " + i, offAttr.endOffset(), equalTo(i+1));
         }
         assertThat(tokenizer.incrementToken(), equalTo(false));
+        tokenizer.end();
+        assertThat("final offset start", offAttr.startOffset(), equalTo(input.length()));
+        assertThat("final offset end", offAttr.endOffset(), equalTo(input.length()));
+
         closeAnalysis();
     }
 

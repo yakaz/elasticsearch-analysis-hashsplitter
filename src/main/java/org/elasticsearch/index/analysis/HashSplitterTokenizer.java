@@ -112,7 +112,7 @@ public final class HashSplitterTokenizer extends Tokenizer {
       inLen = inStr.length();
     }
 
-    if (pos+chunkLength > inLen) {            // if we hit the end of the string
+    if (pos >= inLen) {            // if we hit the end of the string
       return false;
     }
 

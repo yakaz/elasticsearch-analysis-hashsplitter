@@ -20,12 +20,20 @@
 package org.elasticsearch.index.mapper.hashsplitter;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.MultiTermQuery;
+import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.io.FastStringReader;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.analysis.HashSplitterAnalyzer;
 import org.elasticsearch.index.analysis.HashSplitterSearchAnalyzer;
@@ -222,8 +230,9 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     protected char wildcardAny;
     
     protected HashSplitterAnalyzer indexAnalyzer;
-    
-    protected HashSplitterSearchAnalyzer searchAnalyzer;
+
+//    protected HashSplitterSearchAnalyzer searchAnalyzer;
+    protected HashSplitterAnalyzer searchAnalyzer;
 
     public HashSplitterFieldMapper(Names names, Field.Index index, Field.Store store, float boost, String nullValue,
                                    int chunkLength, boolean sizeIsVariable, int sizeValue,
@@ -237,7 +246,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
         this.wildcardOne = wildcardOne;
         this.wildcardAny = wildcardAny;
         this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength);
-        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, HashSplitterSearchAnalyzer.DEFAULT_PREFIXES, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
+//        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, HashSplitterSearchAnalyzer.DEFAULT_PREFIXES, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
+        this.searchAnalyzer = new HashSplitterAnalyzer(this.chunkLength);
     }
 
     @Override
@@ -359,22 +369,32 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
 
     @Override
     public Query prefixQuery(String value, @Nullable MultiTermQuery.RewriteMethod method, @Nullable QueryParseContext context) {
-        // TODO Remove final "*" and use special HashSplitterSearch* analysis and post-process it to create real queries
-//        int pos = value.indexOf("*");
-//        if (pos)
-//        Tokenizer tok = new HashSplitterTokenizer(new FastStringReader(value));
-//        CharTermAttribute term = tok.getAttribute(CharTermAttribute.class);
-//        BooleanQuery q = new BooleanQuery();
-//        try {
-//            while (tok.incrementToken()) {
-//                q.add(new TermQuery(new Term(name(), term.toString())), BooleanClause.Occur.MUST);
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            q = null;
-//        }
-//        return q;
-        return super.prefixQuery(value, method, context);
+        // Use HashSplitter* analysis and post-process it to create the real query
+        TokenStream tok = null;
+        try {
+            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok.reset();
+        } catch (IOException e) {
+            return null;
+        }
+        CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
+        BooleanQuery q = new BooleanQuery();
+        try {
+            while (tok.incrementToken()) {
+                Term term = names().createIndexNameTerm(termAtt.toString());
+                if (termAtt.length() < 1 + chunkLength) {
+                    q.add(new PrefixQuery(term), BooleanClause.Occur.MUST);
+                } else {
+                    q.add(new TermQuery(term), BooleanClause.Occur.MUST);
+                }
+            }
+            tok.end();
+            tok.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            q = null;
+        }
+        return q;
     }
 
     @Override

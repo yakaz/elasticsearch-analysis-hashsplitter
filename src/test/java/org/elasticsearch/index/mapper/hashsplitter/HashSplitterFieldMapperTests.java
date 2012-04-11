@@ -36,6 +36,7 @@ import static org.elasticsearch.common.io.Streams.copyToStringFromClasspath;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.index.query.QueryBuilders.fieldQuery;
+import static org.elasticsearch.index.query.QueryBuilders.prefixQuery;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -78,23 +79,25 @@ public class HashSplitterFieldMapperTests {
     }
 
     @Test
-    public void testBasicMapping() throws Exception {
-        String mapping = copyToStringFromClasspath("/basic-mapping.json");
+    public void testPrefixQueries() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength2-mapping.json");
 
-        logger.error("creating mapping");
         node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
 
-        logger.error("indexing a document");
         node.client().index(indexRequest("test").type("splitted_hashes")
                 .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
-        logger.error("refreshing the index");
         node.client().admin().indices().refresh(refreshRequest()).actionGet();
 
-        CountResponse countResponse = node.client().count(countRequest("test").query(fieldQuery("hash", "0011223344556677"))).actionGet();
-        assertThat(countResponse.count(), equalTo(1l));
+        CountResponse countResponse;
 
-        countResponse = node.client().count(countRequest("test").query(fieldQuery("hash", "0011223344556688"))).actionGet();
-        assertThat(countResponse.count(), equalTo(0l));
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(prefixQuery("hash", "00112233445566"))).actionGet();
+        assertThat("prefix query", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(prefixQuery("hash", "0011223344556"))).actionGet();
+        assertThat("prefix query with incomplete last chunk", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(prefixQuery("hash", "00112233445567"))).actionGet();
+        assertThat("prefix query with unexisting prefix", countResponse.count(), equalTo(0l));
     }
 
 }
