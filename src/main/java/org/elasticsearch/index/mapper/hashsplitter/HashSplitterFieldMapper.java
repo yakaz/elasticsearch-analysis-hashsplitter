@@ -25,15 +25,18 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanFilter;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.MultiTermQuery;
+import org.apache.lucene.search.PrefixFilter;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.FastStringReader;
+import org.elasticsearch.common.lucene.search.TermFilter;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.analysis.HashSplitterAnalyzer;
 import org.elasticsearch.index.analysis.HashSplitterSearchAnalyzer;
@@ -396,8 +399,32 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
 
     @Override
     public Filter prefixFilter(String value, @Nullable QueryParseContext context) {
-        // TODO Remove final "*" and use special HashSplitterSearch* analysis and post-process it to create real queries
-        return super.prefixFilter(value, context);
+        // Use HashSplitterSearch* analysis and post-process it to create the real filter
+        TokenStream tok = null;
+        try {
+            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok.reset();
+        } catch (IOException e) {
+            return null;
+        }
+        CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
+        BooleanFilter q = new BooleanFilter();
+        try {
+            while (tok.incrementToken()) {
+                Term term = names().createIndexNameTerm(termAtt.toString());
+                if (termAtt.length() < 1 + chunkLength) {
+                    q.add(new PrefixFilter(term), BooleanClause.Occur.MUST);
+                } else {
+                    q.add(new TermFilter(term), BooleanClause.Occur.MUST);
+                }
+            }
+            tok.end();
+            tok.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            q = null;
+        }
+        return q;
     }
 
     @Override

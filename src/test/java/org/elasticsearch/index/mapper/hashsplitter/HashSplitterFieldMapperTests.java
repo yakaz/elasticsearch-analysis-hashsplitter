@@ -25,17 +25,28 @@ import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.network.NetworkUtils;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.common.xcontent.json.JsonXContentGenerator;
+import org.elasticsearch.index.query.FilterBuilder;
+import org.elasticsearch.index.query.PrefixFilterBuilder;
 import org.elasticsearch.node.Node;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
-import static org.elasticsearch.client.Requests.*;
+import static org.elasticsearch.client.Requests.clusterHealthRequest;
+import static org.elasticsearch.client.Requests.countRequest;
+import static org.elasticsearch.client.Requests.createIndexRequest;
+import static org.elasticsearch.client.Requests.deleteIndexRequest;
+import static org.elasticsearch.client.Requests.indexRequest;
+import static org.elasticsearch.client.Requests.putMappingRequest;
+import static org.elasticsearch.client.Requests.refreshRequest;
 import static org.elasticsearch.common.io.Streams.copyToStringFromClasspath;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.index.query.QueryBuilders.fieldQuery;
+import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
+import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.index.query.QueryBuilders.prefixQuery;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -117,6 +128,32 @@ public class HashSplitterFieldMapperTests {
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(prefixQuery("hash", "00112233445567"))).actionGet();
         assertThat("prefix query with unexisting prefix", countResponse.count(), equalTo(0l));
+    }
+
+    private static FilterBuilder prefixFilter(String name, String prefix) {
+        return new PrefixFilterBuilder(name, prefix);
+    }
+
+    @Test
+    public void testPrefixFilters() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength2-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), prefixFilter("hash", "00112233445566")))).actionGet();
+        assertThat("prefix filter", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), prefixFilter("hash", "0011223344556")))).actionGet();
+        assertThat("prefix filter with incomplete last chunk", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), prefixFilter("hash", "00112233445567")))).actionGet();
+        assertThat("prefix filter with unexisting prefix", countResponse.count(), equalTo(0l));
     }
 
 }
