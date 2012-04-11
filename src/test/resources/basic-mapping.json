@@ -1,0 +1,11 @@
+{
+    splitted_hashes:{
+        dynamic:false,
+        include_in_all: false,
+        properties:{
+            "hash":{
+                type:"hashsplitter"
+            }
+        }
+    }
+}

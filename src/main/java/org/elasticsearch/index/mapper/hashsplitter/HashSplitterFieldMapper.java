@@ -19,6 +19,7 @@
 
 package org.elasticsearch.index.mapper.hashsplitter;
 
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.MultiTermQuery;
@@ -26,10 +27,13 @@ import org.apache.lucene.search.Query;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.analysis.HashSplitterAnalyzer;
+import org.elasticsearch.index.analysis.HashSplitterSearchAnalyzer;
 import org.elasticsearch.index.mapper.Mapper;
 import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.mapper.MergeContext;
 import org.elasticsearch.index.mapper.MergeMappingException;
+import org.elasticsearch.index.mapper.ParseContext;
 import org.elasticsearch.index.mapper.core.AbstractFieldMapper;
 import org.elasticsearch.index.mapper.core.StringFieldMapper;
 import org.elasticsearch.index.query.QueryParseContext;
@@ -50,7 +54,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
 
     public static class Defaults {
         public static final Boolean INCLUDE_IN_ALL = null;
-        public static final Field.Index INDEX = Field.Index.ANALYZED_NO_NORMS;
+        public static final Field.Index INDEX = Field.Index.ANALYZED;
         public static final Field.Store STORE = Field.Store.NO;
         public static final int CHUNK_LENGTH = 1;
         public static final Integer SIZE = null;
@@ -216,6 +220,10 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     protected char wildcardOne;
 
     protected char wildcardAny;
+    
+    protected HashSplitterAnalyzer indexAnalyzer;
+    
+    protected HashSplitterSearchAnalyzer searchAnalyzer;
 
     public HashSplitterFieldMapper(Names names, Field.Index index, Field.Store store, float boost, String nullValue,
                                    int chunkLength, boolean sizeIsVariable, int sizeValue,
@@ -228,6 +236,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
         this.sizeValue = sizeValue;
         this.wildcardOne = wildcardOne;
         this.wildcardAny = wildcardAny;
+        this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength);
+        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, HashSplitterSearchAnalyzer.DEFAULT_PREFIXES, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
     }
 
     @Override
@@ -267,8 +277,39 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     }
 
     @Override
+    protected String contentType() {
+        return CONTENT_TYPE;
+    }
+
+    @Override
     protected void doXContentBody(XContentBuilder builder) throws IOException {
-        super.doXContentBody(builder);
+        // As we change the default values for many fields,
+        // it may be more interesting not to inherit StringFieldMapper but AbstractFieldMapper directly,
+        //super.doXContentBody(builder);
+
+        // From AbstractFieldMapper
+        builder.field("type", contentType());
+        if (!names.name().equals(names.indexNameClean())) {
+            builder.field("index_name", names.indexNameClean());
+        }
+        if (boost != 1.0f) {
+            builder.field("boost", boost);
+        }
+        // From StringFieldMapper
+        if (index != Defaults.INDEX) {
+            builder.field("index", index.name().toLowerCase());
+        }
+        if (store != Defaults.STORE) {
+            builder.field("store", store.name().toLowerCase());
+        }
+        if (nullValue != null) {
+            builder.field("null_value", nullValue);
+        }
+        if (includeInAll != null) {
+            builder.field("include_in_all", includeInAll);
+        }
+
+        // Additions
         if (chunkLength != Defaults.CHUNK_LENGTH || sizeIsVariable != (Defaults.SIZE == null)
                 || Defaults.SIZE != null && sizeValue != Defaults.SIZE.intValue()
                 || wildcardOne != Defaults.WILDCARD_ONE || wildcardAny != Defaults.WILDCARD_ANY) {
@@ -292,6 +333,16 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
             }
             builder.endObject();
         }
+    }
+
+    @Override
+    public Analyzer indexAnalyzer() {
+        return indexAnalyzer;
+    }
+
+    @Override
+    public Analyzer searchAnalyzer() {
+        return searchAnalyzer;
     }
 
     @Override
