@@ -41,7 +41,6 @@ import org.elasticsearch.index.mapper.Mapper;
 import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.mapper.MergeContext;
 import org.elasticsearch.index.mapper.MergeMappingException;
-import org.elasticsearch.index.mapper.ParseContext;
 import org.elasticsearch.index.mapper.core.AbstractFieldMapper;
 import org.elasticsearch.index.mapper.core.StringFieldMapper;
 import org.elasticsearch.index.query.QueryParseContext;
@@ -231,8 +230,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     
     protected HashSplitterAnalyzer indexAnalyzer;
 
-//    protected HashSplitterSearchAnalyzer searchAnalyzer;
-    protected HashSplitterAnalyzer searchAnalyzer;
+    protected HashSplitterSearchAnalyzer searchAnalyzer;
 
     public HashSplitterFieldMapper(Names names, Field.Index index, Field.Store store, float boost, String nullValue,
                                    int chunkLength, boolean sizeIsVariable, int sizeValue,
@@ -246,8 +244,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
         this.wildcardOne = wildcardOne;
         this.wildcardAny = wildcardAny;
         this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength);
-//        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, HashSplitterSearchAnalyzer.DEFAULT_PREFIXES, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
-        this.searchAnalyzer = new HashSplitterAnalyzer(this.chunkLength);
+        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, HashSplitterSearchAnalyzer.DEFAULT_PREFIXES, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
     }
 
     @Override
@@ -369,7 +366,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
 
     @Override
     public Query prefixQuery(String value, @Nullable MultiTermQuery.RewriteMethod method, @Nullable QueryParseContext context) {
-        // Use HashSplitter* analysis and post-process it to create the real query
+        // Use HashSplitterSearch* analysis and post-process it to create the real query
         TokenStream tok = null;
         try {
             tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));

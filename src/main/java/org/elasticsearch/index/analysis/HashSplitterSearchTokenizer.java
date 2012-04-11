@@ -147,7 +147,7 @@ public final class HashSplitterSearchTokenizer extends Tokenizer {
       inLen = inStr.length();
     }
 
-    if (pos+chunkLength > inLen) {            // if we hit the end of the string
+    if (pos >= inLen) {            // if we hit the end of the string
       return false;
     }
 
@@ -181,5 +181,6 @@ public final class HashSplitterSearchTokenizer extends Tokenizer {
     super.reset();
     started = false;
     pos = 0;
+    prefix = 0;
   }
 }

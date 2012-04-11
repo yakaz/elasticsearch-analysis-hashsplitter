@@ -79,6 +79,25 @@ public class HashSplitterFieldMapperTests {
     }
 
     @Test
+    public void testBasicMapping() throws Exception {
+        String mapping = copyToStringFromClasspath("/basic-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").query(fieldQuery("hash", "0011223344556677"))).actionGet();
+        assertThat("field query on exact value", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").query(fieldQuery("hash", "0011223344556688"))).actionGet();
+        assertThat("field query on different value, same prefix", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
     public void testPrefixQueries() throws Exception {
         String mapping = copyToStringFromClasspath("/chunklength2-mapping.json");
 
