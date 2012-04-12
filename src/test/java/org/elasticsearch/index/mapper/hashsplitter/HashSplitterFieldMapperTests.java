@@ -48,6 +48,9 @@ import static org.elasticsearch.index.query.QueryBuilders.fieldQuery;
 import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.index.query.QueryBuilders.prefixQuery;
+import static org.elasticsearch.index.query.QueryBuilders.queryString;
+import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+import static org.elasticsearch.index.query.QueryBuilders.textQuery;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -157,6 +160,89 @@ public class HashSplitterFieldMapperTests {
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), prefixFilter("hash", "00112233445567")))).actionGet();
         assertThat("prefix filter with unexisting prefix", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testTermQueries() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength2-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        // We would like these to work, but it doesn't seem possible...
+        // (ie. having a term query that is *not analyzed*. it instead goes through fieldQuery)
+//        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "A00"))).actionGet();
+//        assertThat("term query", countResponse.count(), equalTo(1l));
+//
+//        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "B22"))).actionGet();
+//        assertThat("term query with unexisting term", countResponse.count(), equalTo(0l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "0011223344556677"))).actionGet();
+        assertThat("term query on exact value", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "00112233445566"))).actionGet();
+        assertThat("term query on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "0011223344556"))).actionGet();
+        assertThat("term query on a prefix with incomplete chunk", countResponse.count(), equalTo(0l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "0011223344556688"))).actionGet();
+        assertThat("term query on different value, same prefix", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testTextQueries() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength2-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(textQuery("hash", "0011223344556677"))).actionGet();
+        assertThat("text query on exact value", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(textQuery("hash", "00112233445566"))).actionGet();
+        assertThat("text query on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(textQuery("hash", "0011223344556"))).actionGet();
+        assertThat("text query on a prefix with incomplete chunk", countResponse.count(), equalTo(0l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(textQuery("hash", "0011223344556688"))).actionGet();
+        assertThat("text query on different value, same prefix", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testStringQueries() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength2-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("0011223344556677").defaultField("hash"))).actionGet();
+        assertThat("string query on exact value", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("00112233445566").defaultField("hash"))).actionGet();
+        assertThat("string query on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("0011223344556").defaultField("hash"))).actionGet();
+        assertThat("string query on a prefix with incomplete chunk", countResponse.count(), equalTo(0l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("0011223344556688").defaultField("hash"))).actionGet();
+        assertThat("string query on different value, same prefix", countResponse.count(), equalTo(0l));
     }
 
 }

@@ -489,6 +489,14 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     }
 
     @Override
+    public Query queryStringTermQuery(Term term) {
+        // Direct use of term queries against such a field implies you know what you are doing
+        // (ie. the use of prefixes and chunks)
+        // We could also decide to call over to fieldquery().
+        return null;
+    }
+
+    @Override
     public Query fuzzyQuery(String value, String minSim, int prefixLength, int maxExpansions) {
         // Not supported for now
         return null; // will fallback to an unusable default query
