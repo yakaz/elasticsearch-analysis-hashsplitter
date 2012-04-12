@@ -487,4 +487,17 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
         // TODO get inspiration from NumericRangeQuery
         return super.rangeFilter(lowerTerm, upperTerm, includeLower, includeUpper, context);
     }
+
+    @Override
+    public Query fuzzyQuery(String value, String minSim, int prefixLength, int maxExpansions) {
+        // Not supported for now
+        return null; // will fallback to an unusable default query
+    }
+
+    @Override
+    public Query fuzzyQuery(String value, double minSim, int prefixLength, int maxExpansions) {
+        // Not supported for now
+        return null; // will fallback to an unusable default query
+    }
+
 }
