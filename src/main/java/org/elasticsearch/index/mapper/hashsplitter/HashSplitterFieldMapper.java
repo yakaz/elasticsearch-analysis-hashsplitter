@@ -356,15 +356,62 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     }
 
     @Override
+    public boolean useFieldQueryWithQueryString() {
+        // Don't use our search analyzer with all query strings, prefer our overloaded fieldQuery()
+        // (See elasticsearch org.apache.lucene.queryParser.MapperQueryParser.getFieldQuery()'s call to this function.)
+        return true;
+    }
+
+    @Override
     public Query fieldQuery(String value, @Nullable QueryParseContext context) {
-        // TODO Expand "*" and use special HashSplitterSearch* analysis and post-process it to create real queries
-        return super.fieldQuery(value, context);
+        // Use HashSplitterSearch* analysis and post-process it to create the real query
+        TokenStream tok = null;
+        try {
+            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok.reset();
+        } catch (IOException e) {
+            return null;
+        }
+        CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
+        BooleanQuery q = new BooleanQuery();
+        try {
+            while (tok.incrementToken()) {
+                Term term = names().createIndexNameTerm(termAtt.toString());
+                q.add(new TermQuery(term), BooleanClause.Occur.MUST);
+            }
+            tok.end();
+            tok.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            q = null;
+        }
+        return q;
     }
 
     @Override
     public Filter fieldFilter(String value, @Nullable QueryParseContext context) {
-        // TODO Expand "*" and use special HashSplitterSearch* analysis and post-process it to create real queries
-        return super.fieldFilter(value, context);
+        // Use HashSplitterSearch* analysis and post-process it to create the real query
+        TokenStream tok = null;
+        try {
+            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok.reset();
+        } catch (IOException e) {
+            return null;
+        }
+        CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
+        BooleanFilter f = new BooleanFilter();
+        try {
+            while (tok.incrementToken()) {
+                Term term = names().createIndexNameTerm(termAtt.toString());
+                f.add(new TermFilter(term), BooleanClause.Occur.MUST);
+            }
+            tok.end();
+            tok.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            f = null;
+        }
+        return f;
     }
 
     @Override
@@ -408,23 +455,23 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
             return null;
         }
         CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
-        BooleanFilter q = new BooleanFilter();
+        BooleanFilter f = new BooleanFilter();
         try {
             while (tok.incrementToken()) {
                 Term term = names().createIndexNameTerm(termAtt.toString());
                 if (termAtt.length() < 1 + chunkLength) {
-                    q.add(new PrefixFilter(term), BooleanClause.Occur.MUST);
+                    f.add(new PrefixFilter(term), BooleanClause.Occur.MUST);
                 } else {
-                    q.add(new TermFilter(term), BooleanClause.Occur.MUST);
+                    f.add(new TermFilter(term), BooleanClause.Occur.MUST);
                 }
             }
             tok.end();
             tok.close();
         } catch (IOException e) {
             e.printStackTrace();
-            q = null;
+            f = null;
         }
-        return q;
+        return f;
     }
 
     @Override

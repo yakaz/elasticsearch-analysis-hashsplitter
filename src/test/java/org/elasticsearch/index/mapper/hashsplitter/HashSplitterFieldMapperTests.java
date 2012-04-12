@@ -96,15 +96,18 @@ public class HashSplitterFieldMapperTests {
         node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
 
         node.client().index(indexRequest("test").type("splitted_hashes")
-                .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+                .source(jsonBuilder().startObject().field("hash", "01234567").endObject())).actionGet();
         node.client().admin().indices().refresh(refreshRequest()).actionGet();
 
         CountResponse countResponse;
 
-        countResponse = node.client().count(countRequest("test").query(fieldQuery("hash", "0011223344556677"))).actionGet();
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(fieldQuery("hash", "01234567"))).actionGet();
         assertThat("field query on exact value", countResponse.count(), equalTo(1l));
 
-        countResponse = node.client().count(countRequest("test").query(fieldQuery("hash", "0011223344556688"))).actionGet();
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(fieldQuery("hash", "0123456"))).actionGet();
+        assertThat("field query on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(fieldQuery("hash", "01234568"))).actionGet();
         assertThat("field query on different value, same prefix", countResponse.count(), equalTo(0l));
     }
 
