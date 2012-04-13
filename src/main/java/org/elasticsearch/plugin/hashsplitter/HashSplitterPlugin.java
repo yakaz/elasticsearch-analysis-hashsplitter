@@ -22,7 +22,9 @@ package org.elasticsearch.plugin.hashsplitter;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.index.analysis.AnalysisModule;
 import org.elasticsearch.index.analysis.HashSplitterAnalysisBinderProcessor;
+import org.elasticsearch.indices.query.IndicesQueriesModule;
 import org.elasticsearch.plugin.mapper.hashsplitter.HashSplitterIndexModule;
+import org.elasticsearch.plugin.mapper.hashsplitter.HashSplitterIndexQueryParserModule;
 import org.elasticsearch.plugins.AbstractPlugin;
 
 import java.util.Collection;
@@ -56,6 +58,7 @@ public class HashSplitterPlugin extends AbstractPlugin {
     public Collection<Class<? extends Module>> indexModules() {
         Collection<Class<? extends Module>> modules = newArrayList();
         modules.add(HashSplitterIndexModule.class);
+        modules.add(HashSplitterIndexQueryParserModule.class);
         return modules;
     }
 
