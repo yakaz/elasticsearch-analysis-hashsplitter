@@ -108,10 +108,152 @@ public class HashSplitterSearchTokenizerTests {
         closeAnalysis();
     }
 
-    // TODO testSearchWildcardOne
-    // TODO testSearchWildcardAny prefix variable size
-    // TODO testSearchWildcardAny prefix fixed size
-    // TODO testSearchWildcardAny suffix fixed size
-    // TODO testSearchWildcardAny prefix and suffix fixed size
+    @Test
+    public void testSearchWildcardOne() throws Exception {
+        tokenizer = new HashSplitterSearchTokenizer(null, 4, "abcd", '?', '*', false, 12);
+
+        analyze("00001??12222");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a0000"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(4));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b1??1"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat("at i = 2", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 2", termAttr.toString(), equalTo("c2222"));
+        assertThat("at i = 2", offAttr.startOffset(), equalTo(8));
+        assertThat("at i = 2", offAttr.endOffset(), equalTo(12));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+
+        analyze("?????11?????");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b?11?"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat("at i = 2", tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+    }
+
+    @Test
+    public void testSearchWildcardAnyPrefixVariableSize() throws Exception {
+        tokenizer = new HashSplitterSearchTokenizer(null, 4, "abcd", '?', '*', true, -1);
+
+        analyze("00001*");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a0000"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(4));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b1???"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+
+        analyze("0000111*");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a0000"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(4));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b111?"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+    }
+
+    @Test
+    public void testSearchWildcardAnyPrefixFixedSize() throws Exception {
+        tokenizer = new HashSplitterSearchTokenizer(null, 4, "abcd", '?', '*', false, 12);
+
+        analyze("00001*");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a0000"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(4));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b1???"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+
+        analyze("0000111*");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a0000"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(4));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b111?"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+    }
+
+    @Test
+    public void testSearchWildcardAnySuffixFixedSize() throws Exception {
+        tokenizer = new HashSplitterSearchTokenizer(null, 4, "abcd", '?', '*', false, 12);
+
+        analyze("*12222");
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b???1"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat("at i = 2", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 2", termAttr.toString(), equalTo("c2222"));
+        assertThat("at i = 2", offAttr.startOffset(), equalTo(8));
+        assertThat("at i = 2", offAttr.endOffset(), equalTo(12));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+
+        analyze("*1112222");
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b?111"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat("at i = 2", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 2", termAttr.toString(), equalTo("c2222"));
+        assertThat("at i = 2", offAttr.startOffset(), equalTo(8));
+        assertThat("at i = 2", offAttr.endOffset(), equalTo(12));
+        closeAnalysis();
+    }
+
+    @Test
+    public void testSearchWildcardAnyPrefixAndSuffixFixedSize() throws Exception {
+        tokenizer = new HashSplitterSearchTokenizer(null, 4, "abcd", '?', '*', false, 12);
+
+        analyze("0*12222");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a0???"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(4));
+        assertThat("at i = 1", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 1", termAttr.toString(), equalTo("b???1"));
+        assertThat("at i = 1", offAttr.startOffset(), equalTo(4));
+        assertThat("at i = 1", offAttr.endOffset(), equalTo(8));
+        assertThat("at i = 2", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 2", termAttr.toString(), equalTo("c2222"));
+        assertThat("at i = 2", offAttr.startOffset(), equalTo(8));
+        assertThat("at i = 2", offAttr.endOffset(), equalTo(12));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+
+        analyze("0*2");
+        assertThat("at i = 0", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 0", termAttr.toString(), equalTo("a0???"));
+        assertThat("at i = 0", offAttr.startOffset(), equalTo(0));
+        assertThat("at i = 0", offAttr.endOffset(), equalTo(4));
+        assertThat("at i = 2", tokenizer.incrementToken(), equalTo(true));
+        assertThat("at i = 2", termAttr.toString(), equalTo("c???2"));
+        assertThat("at i = 2", offAttr.startOffset(), equalTo(8));
+        assertThat("at i = 2", offAttr.endOffset(), equalTo(12));
+        assertThat(tokenizer.incrementToken(), equalTo(false));
+        closeAnalysis();
+    }
 
 }
