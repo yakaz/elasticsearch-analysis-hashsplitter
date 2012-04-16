@@ -67,6 +67,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
         public static final Field.Index INDEX = Field.Index.ANALYZED;
         public static final Field.Store STORE = Field.Store.NO;
         public static final int CHUNK_LENGTH = 1;
+        public static final String PREFIX = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.";
         public static final Integer SIZE = null;
         public static final char WILDCARD_ONE = '?';
         public static final char WILDCARD_ANY = '*';
@@ -77,6 +78,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
         protected String nullValue = StringFieldMapper.Defaults.NULL_VALUE;
 
         private int chunkLength = Defaults.CHUNK_LENGTH;
+
+        private String prefix = Defaults.PREFIX;
 
         private Integer size = Defaults.SIZE;
 
@@ -128,6 +131,11 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
             return this;
         }
 
+        public Builder prefix(String prefix) {
+            this.prefix = prefix;
+            return this;
+        }
+
         public Builder size(Integer size) {
             this.size = size;
             return this;
@@ -149,7 +157,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
         public HashSplitterFieldMapper build(BuilderContext context) {
             HashSplitterFieldMapper fieldMapper = new HashSplitterFieldMapper(buildNames(context),
                     index, store, boost, nullValue,
-                    chunkLength, size == null, size == null ? -1 : size.intValue(),
+                    chunkLength, prefix, size == null, size == null ? -1 : size.intValue(),
                     wildcardOne, wildcardAny);
             fieldMapper.includeInAll(includeInAll);
             return fieldMapper;
@@ -191,6 +199,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
 
                         if ("chunk_length".equals(propName)) {
                             builder.chunkLength(nodeIntegerValue(propNode));
+                        } else if ("prefix".equals(propName)) {
+                            builder.prefix(propNode.toString());
                         } else if ("size".equals(propName)) {
                             builder.size(nodeSizeValue(propNode));
                         } else if ("wildcard_one".equals(propName)) {
@@ -222,7 +232,9 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     protected Boolean includeInAll;
 
     protected int chunkLength;
-    
+
+    protected String prefix;
+
     protected boolean sizeIsVariable;
 
     protected int sizeValue;
@@ -236,18 +248,19 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     protected HashSplitterSearchAnalyzer searchAnalyzer;
 
     public HashSplitterFieldMapper(Names names, Field.Index index, Field.Store store, float boost, String nullValue,
-                                   int chunkLength, boolean sizeIsVariable, int sizeValue,
+                                   int chunkLength, String prefix, boolean sizeIsVariable, int sizeValue,
                                    char wildcardOne, char wildcardAny) {
         super(names, index, store, Field.TermVector.NO, boost, true, true, nullValue, null, null);
         this.nullValue = nullValue;
         this.includeInAll = null;
         this.chunkLength = chunkLength;
+        this.prefix = prefix;
         this.sizeIsVariable = sizeIsVariable;
         this.sizeValue = sizeValue;
         this.wildcardOne = wildcardOne;
         this.wildcardAny = wildcardAny;
-        this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength);
-        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, HashSplitterSearchAnalyzer.DEFAULT_PREFIXES, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
+        this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength, this.prefix);
+        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, this.prefix, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
     }
 
     @Override
@@ -279,10 +292,13 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
             this.includeInAll = casted.includeInAll;
             this.nullValue = casted.nullValue;
             this.chunkLength = casted.chunkLength;
+            this.prefix = casted.prefix;
             this.sizeIsVariable = casted.sizeIsVariable;
             this.sizeValue = casted.sizeValue;
             this.wildcardOne = casted.wildcardOne;
             this.wildcardAny = casted.wildcardAny;
+            this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength, this.prefix);
+            this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, this.prefix, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
         }
     }
 
@@ -326,6 +342,9 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
             builder.startObject("settings");
             if (chunkLength != Defaults.CHUNK_LENGTH) {
                 builder.field("chunk_length", chunkLength);
+            }
+            if (prefix != Defaults.PREFIX) {
+                builder.field("prefix", prefix);
             }
             if (sizeIsVariable != (Defaults.SIZE == null)
                     || Defaults.SIZE != null && sizeValue != Defaults.SIZE.intValue()) {

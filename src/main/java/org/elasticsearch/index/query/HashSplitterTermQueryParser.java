@@ -89,6 +89,9 @@ public class HashSplitterTermQueryParser implements QueryParser{
 
         Query query = null;
         MapperService.SmartNameFieldMappers smartNameFieldMappers = parseContext.smartFieldMappers(fieldName);
+        if (smartNameFieldMappers != null && smartNameFieldMappers.hasMapper()) {
+            fieldName = smartNameFieldMappers.mapper().names().indexName();
+        }
 
         // NO special mapper usage, just a plain, un-analyzed TermQuery!
         query = new TermQuery(new Term(fieldName, value));
