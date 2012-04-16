@@ -42,7 +42,10 @@ import static org.elasticsearch.client.Requests.refreshRequest;
 import static org.elasticsearch.common.io.Streams.copyToStringFromClasspath;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static org.elasticsearch.index.query.HashSplitterTermFilterBuilder.hashSplitterTermFilter;
 import static org.elasticsearch.index.query.HashSplitterTermQueryBuilder.hashSplitterTermQuery;
+import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
+import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -105,6 +108,29 @@ public class HashSplitterQueryParsersTests {
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterTermQuery("hash", "z9999"))).actionGet();
         assertThat("term query on inexistent term", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testTermFilter() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength4-prefixesLowercasedAlphabet-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111122223333").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "b1111")))).actionGet();
+        assertThat("term filter existence", countResponse.failedShards(), equalTo(0));
+        assertThat("term filter", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "a000")))).actionGet();
+        assertThat("term filter on a prefix", countResponse.count(), equalTo(0l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "z9999")))).actionGet();
+        assertThat("term filter on inexistent term", countResponse.count(), equalTo(0l));
     }
 
 }

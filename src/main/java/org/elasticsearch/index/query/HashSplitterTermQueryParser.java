@@ -84,7 +84,7 @@ public class HashSplitterTermQueryParser implements QueryParser{
         }
 
         if (value == null) {
-            throw new QueryParsingException(parseContext.index(), "No value specified for term query");
+            throw new QueryParsingException(parseContext.index(), "No value specified for "+NAME+" query");
         }
 
         Query query = null;

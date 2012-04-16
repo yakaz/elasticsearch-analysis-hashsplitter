@@ -36,6 +36,7 @@ public class RegisterHashSplitterQueryParsers extends AbstractIndexComponent {
         super(index, indexSettings);
 
         indicesQueriesRegistry.addQueryParser(new HashSplitterTermQueryParser());
+        indicesQueriesRegistry.addFilterParser(new HashSplitterTermFilterParser());
     }
 
 }
