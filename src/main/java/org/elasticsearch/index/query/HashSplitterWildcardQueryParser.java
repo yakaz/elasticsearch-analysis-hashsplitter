@@ -63,8 +63,6 @@ public class HashSplitterWildcardQueryParser implements QueryParser {
         String rewriteMethod = null;
 
         String value = null;
-        char wildcardOne = HashSplitterFieldMapper.Defaults.WILDCARD_ONE;
-        char wildcardAny = HashSplitterFieldMapper.Defaults.WILDCARD_ANY;
         float boost = 1.0f;
         token = parser.nextToken();
         if (token == XContentParser.Token.START_OBJECT) {
@@ -77,14 +75,6 @@ public class HashSplitterWildcardQueryParser implements QueryParser {
                         value = parser.text();
                     } else if ("value".equals(currentFieldName)) {
                         value = parser.text();
-                    } else if ("wildcard_one".equals(currentFieldName)) {
-                        if (parser.textLength() != 1)
-                            throw new QueryParsingException(parseContext.index(), "["+NAME+"] query only support single char [" + currentFieldName + "]");
-                        wildcardOne = parser.text().charAt(0);
-                    } else if ("wildcard_any".equals(currentFieldName)) {
-                        if (parser.textLength() != 1)
-                            throw new QueryParsingException(parseContext.index(), "["+NAME+"] query only support single char [" + currentFieldName + "]");
-                        wildcardAny = parser.text().charAt(0);
                     } else if ("boost".equals(currentFieldName)) {
                         boost = parser.floatValue();
                     } else if ("rewrite".equals(currentFieldName)) {
@@ -119,7 +109,7 @@ public class HashSplitterWildcardQueryParser implements QueryParser {
             }
         }
         if (query == null) {
-            WildcardQuery q = new WildcardQuery(new Term(fieldName, value), wildcardOne, wildcardAny);
+            WildcardQuery q = new WildcardQuery(new Term(fieldName, value));
             q.setRewriteMethod(QueryParsers.parseRewriteMethod(rewriteMethod));
             query = q;
         }

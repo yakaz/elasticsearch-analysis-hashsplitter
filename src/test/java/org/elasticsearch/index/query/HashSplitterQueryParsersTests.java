@@ -165,6 +165,23 @@ public class HashSplitterQueryParsersTests {
     }
 
     @Test
+    public void testWildcardQueryVariableSizeAlternate() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength4-prefixesLowercasedAlphabet-SqlWildcards-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111122223333").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "____1111%"))).actionGet();
+        assertThat("wildcard query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard query with SQL-flavoured wildcards", countResponse.count(), equalTo(1l));
+    }
+
+    @Test
     public void testWildcardFilterVariableSize() throws Exception {
         String mapping = copyToStringFromClasspath("/chunklength4-prefixesLowercasedAlphabet-mapping.json");
 
@@ -191,6 +208,23 @@ public class HashSplitterQueryParsersTests {
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "99*99")))).actionGet();
         assertThat("wildcard filter on inexistent term", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testWildcardFilterVariableSizeAlternate() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength4-prefixesLowercasedAlphabet-SqlWildcards-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111122223333").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "____1111%")))).actionGet();
+        assertThat("wildcard query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard query with SQL-flavoured wildcards", countResponse.count(), equalTo(1l));
     }
 
     @Test

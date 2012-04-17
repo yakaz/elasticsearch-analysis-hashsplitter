@@ -143,15 +143,13 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             return this;
         }
 
-        public Builder wildcardOne(String wildcardOne) {
-            if (wildcardOne != null && wildcardOne.length() == 1)
-                this.wildcardOne = wildcardOne.charAt(0);
+        public Builder wildcardOne(char wildcardOne) {
+            this.wildcardOne = wildcardOne;
             return this;
         }
 
-        public Builder wildcardAny(String wildcardAny) {
-            if (wildcardAny != null && wildcardAny.length() == 1)
-                this.wildcardAny = wildcardAny.charAt(0);
+        public Builder wildcardAny(char wildcardAny) {
+            this.wildcardAny = wildcardAny;
             return this;
         }
 
@@ -206,9 +204,15 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
                         } else if ("size".equals(propName)) {
                             builder.size(nodeSizeValue(propNode));
                         } else if ("wildcard_one".equals(propName)) {
-                            builder.wildcardOne(propNode.toString());
+                            String value = propNode.toString();
+                            if (value.length() != 1)
+                                throw new MapperParsingException("["+HashSplitterFieldMapper.CONTENT_TYPE+"] Field "+name+" only supports 1-character long wildcard_one");
+                            builder.wildcardOne(value.charAt(0));
                         } else if ("wildcard_any".equals(propName)) {
-                            builder.wildcardAny(propNode.toString());
+                            String value = propNode.toString();
+                            if (value.length() != 1)
+                                throw new MapperParsingException("["+HashSplitterFieldMapper.CONTENT_TYPE+"] Field "+name+" only supports 1-character long wildcard_any");
+                            builder.wildcardAny(value.charAt(0));
                         }
                     }
                 }
@@ -359,10 +363,10 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
                     builder.value(sizeValue);
             }
             if (wildcardOne != Defaults.WILDCARD_ONE) {
-                builder.field("wildcard_one", wildcardOne);
+                builder.field("wildcard_one", Character.toString(wildcardOne));
             }
             if (wildcardAny != Defaults.WILDCARD_ANY) {
-                builder.field("wildcard_any", wildcardAny);
+                builder.field("wildcard_any", Character.toString(wildcardAny));
             }
             builder.endObject();
         }

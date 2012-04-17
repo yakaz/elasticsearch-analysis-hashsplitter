@@ -34,10 +34,6 @@ public class HashSplitterWildcardQueryBuilder extends BaseQueryBuilder {
 
     private final String wildcard;
 
-    private char wildcardOne = WildcardQuery.DEFAULT_WILDCARD_ONE;
-
-    private char wildcardAny = WildcardQuery.DEFAULT_WILDCARD_ANY;
-
     private float boost = -1;
 
     private String rewrite;
@@ -58,22 +54,6 @@ public class HashSplitterWildcardQueryBuilder extends BaseQueryBuilder {
         this.wildcard = wildcard;
     }
 
-    /**
-     * Sets the wildcard character to be used to match a single character.
-     */
-    public HashSplitterWildcardQueryBuilder wildcardOne(char wildcardOne) {
-        this.wildcardOne = wildcardOne;
-        return this;
-    }
-
-    /**
-     * Sets the wildcard character to be used to match any substring.
-     */
-    public HashSplitterWildcardQueryBuilder wildcardAny(char wildcardAny) {
-        this.wildcardAny = wildcardAny;
-        return this;
-    }
-
     public HashSplitterWildcardQueryBuilder rewrite(String rewrite) {
         this.rewrite = rewrite;
         return this;
@@ -91,19 +71,11 @@ public class HashSplitterWildcardQueryBuilder extends BaseQueryBuilder {
     @Override
     public void doXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(HashSplitterWildcardQueryParser.NAME);
-        if (boost == -1 && rewrite == null
-                && wildcardOne == WildcardQuery.DEFAULT_WILDCARD_ONE
-                && wildcardAny == WildcardQuery.DEFAULT_WILDCARD_ANY) {
+        if (boost == -1 && rewrite == null) {
             builder.field(name, wildcard);
         } else {
             builder.startObject(name);
             builder.field("wildcard", wildcard);
-            if (wildcardOne != WildcardQuery.DEFAULT_WILDCARD_ONE) {
-                builder.field("wildcard_one", wildcardOne);
-            }
-            if (wildcardAny != WildcardQuery.DEFAULT_WILDCARD_ANY) {
-                builder.field("wildcard_any", wildcardAny);
-            }
             if (boost != -1) {
                 builder.field("boost", boost);
             }

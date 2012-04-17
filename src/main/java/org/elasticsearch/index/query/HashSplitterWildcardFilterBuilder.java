@@ -19,7 +19,6 @@
 
 package org.elasticsearch.index.query;
 
-import org.apache.lucene.search.WildcardQuery;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
@@ -33,8 +32,6 @@ public class HashSplitterWildcardFilterBuilder extends BaseFilterBuilder {
     private final String name;
 
     private final String wildcard;
-    private char wildcardOne = WildcardQuery.DEFAULT_WILDCARD_ONE;
-    private char wildcardAny = WildcardQuery.DEFAULT_WILDCARD_ANY;
 
     private Boolean cache;
     private String cacheKey;
@@ -55,22 +52,6 @@ public class HashSplitterWildcardFilterBuilder extends BaseFilterBuilder {
     public HashSplitterWildcardFilterBuilder(String name, String wildcard) {
         this.name = name;
         this.wildcard = wildcard;
-    }
-
-    /**
-     * Sets the wildcard character to be used to match a single character.
-     */
-    public HashSplitterWildcardFilterBuilder wildcardOne(char wildcardOne) {
-        this.wildcardOne = wildcardOne;
-        return this;
-    }
-
-    /**
-     * Sets the wildcard character to be used to match any substring.
-     */
-    public HashSplitterWildcardFilterBuilder wildcardAny(char wildcardAny) {
-        this.wildcardAny = wildcardAny;
-        return this;
     }
 
     /**
@@ -96,14 +77,8 @@ public class HashSplitterWildcardFilterBuilder extends BaseFilterBuilder {
 
     @Override
     public void doXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject(HashSplitterWildcardQueryParser.NAME);
+        builder.startObject(HashSplitterWildcardFilterParser.NAME);
         builder.field(name, wildcard);
-        if (wildcardOne != WildcardQuery.DEFAULT_WILDCARD_ONE) {
-            builder.field("wildcard_one", wildcardOne);
-        }
-        if (wildcardAny != WildcardQuery.DEFAULT_WILDCARD_ANY) {
-            builder.field("wildcard_any", wildcardAny);
-        }
         if (filterName != null) {
             builder.field("_name", filterName);
         }

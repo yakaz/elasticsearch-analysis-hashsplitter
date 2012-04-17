@@ -57,52 +57,33 @@ public class HashSplitterWildcardFilterParser implements FilterParser {
     public Filter parse(QueryParseContext parseContext) throws IOException, QueryParsingException {
         XContentParser parser = parseContext.parser();
 
-        XContentParser.Token token = parser.nextToken();
-        if (token != XContentParser.Token.FIELD_NAME) {
-            throw new QueryParsingException(parseContext.index(), "["+NAME+"] query malformed, no field");
-        }
-        String fieldName = parser.currentName();
-
         boolean cache = false;
         CacheKeyFilter.Key cacheKey = null;
         String filterName = null;
         String value = null;
-        char wildcardOne = HashSplitterFieldMapper.Defaults.WILDCARD_ONE;
-        char wildcardAny = HashSplitterFieldMapper.Defaults.WILDCARD_ANY;
-        token = parser.nextToken();
-        if (token == XContentParser.Token.START_OBJECT) {
-            String currentFieldName = null;
-            while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
-                if (token == XContentParser.Token.FIELD_NAME) {
-                    currentFieldName = parser.currentName();
+
+        String fieldName = null;
+        String currentFieldName = null;
+        XContentParser.Token token;
+        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+            if (token == XContentParser.Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token.isValue()) {
+                if ("_name".equals(currentFieldName)) {
+                    filterName = parser.text();
+                } else if ("_cache".equals(currentFieldName)) {
+                    cache = parser.booleanValue();
+                } else if ("_cache_key".equals(currentFieldName) || "_cacheKey".equals(currentFieldName)) {
+                    cacheKey = new CacheKeyFilter.Key(parser.text());
                 } else {
-                    if ("wildcard".equals(currentFieldName)) {
-                        value = parser.text();
-                    } else if ("value".equals(currentFieldName)) {
-                        value = parser.text();
-                    } else if ("wildcard_one".equals(currentFieldName)) {
-                        if (parser.textLength() != 1)
-                            throw new QueryParsingException(parseContext.index(), "["+NAME+"] query only support single char [" + currentFieldName + "]");
-                        wildcardOne = parser.text().charAt(0);
-                    } else if ("wildcard_any".equals(currentFieldName)) {
-                        if (parser.textLength() != 1)
-                            throw new QueryParsingException(parseContext.index(), "["+NAME+"] query only support single char [" + currentFieldName + "]");
-                        wildcardAny = parser.text().charAt(0);
-                    } else if ("_name".equals(currentFieldName)) {
-                        filterName = parser.text();
-                    } else if ("_cache".equals(currentFieldName)) {
-                        cache = parser.booleanValue();
-                    } else if ("_cache_key".equals(currentFieldName) || "_cacheKey".equals(currentFieldName)) {
-                        cacheKey = new CacheKeyFilter.Key(parser.text());
-                    } else {
-                        throw new QueryParsingException(parseContext.index(), "["+NAME+"] query does not support [" + currentFieldName + "]");
-                    }
+                    fieldName = currentFieldName;
+                    value = parser.text();
                 }
             }
-            parser.nextToken();
-        } else {
-            value = parser.text();
-            parser.nextToken();
+        }
+
+        if (fieldName == null) {
+            throw new QueryParsingException(parseContext.index(), "No field specified for term filter");
         }
 
         if (value == null) {
@@ -112,27 +93,46 @@ public class HashSplitterWildcardFilterParser implements FilterParser {
         Filter filter = null;
         MapperService.SmartNameFieldMappers smartNameFieldMappers = parseContext.smartFieldMappers(fieldName);
         if (smartNameFieldMappers != null && smartNameFieldMappers.hasMapper()) {
-            FieldMapper mapper = smartNameFieldMappers.mapper();
-            if (mapper != null && mapper instanceof CustomWildcardSearchFieldMapper) {
-                CustomWildcardSearchFieldMapper hashsplitterMapper = (CustomWildcardSearchFieldMapper) mapper;
-                filter = hashsplitterMapper.wildcardFilter(value, parseContext);
-                if (filter == null) {
-                    // No useful wildcardFilter() implementation, try wildcardQuery()
-                    Query query = hashsplitterMapper.wildcardQuery(value, MultiTermQuery.CONSTANT_SCORE_FILTER_REWRITE, parseContext);
-                    if (query != null)
-                        filter = new QueryWrapperFilter(query);
+            String[] previousTypes = null;
+            try {
+                if (smartNameFieldMappers.explicitTypeInNameWithDocMapper()) {
+                    previousTypes = QueryParseContext.setTypesWithPrevious(new String[]{smartNameFieldMappers.docMapper().type()});
                 }
-            }
-            if (filter == null) { // not associated with a HashSplitterFieldMapper OR wildcardFilter/Query() returned null
-                // Fallback on the same code as org.elasticsearch.index.query.WildcardQueryParser
-                fieldName = smartNameFieldMappers.mapper().names().indexName();
-                value = smartNameFieldMappers.mapper().indexedValue(value);
+                FieldMapper mapper = smartNameFieldMappers.mapper();
+                if (mapper != null && mapper instanceof CustomWildcardSearchFieldMapper) {
+                    CustomWildcardSearchFieldMapper hashsplitterMapper = (CustomWildcardSearchFieldMapper) mapper;
+                    filter = hashsplitterMapper.wildcardFilter(value, parseContext);
+                    if (filter == null) {
+                        // No useful wildcardFilter() implementation, try wildcardQuery()
+                        Query query = hashsplitterMapper.wildcardQuery(value, MultiTermQuery.CONSTANT_SCORE_FILTER_REWRITE, parseContext);
+                        if (query != null)
+                            filter = new QueryWrapperFilter(query);
+                    }
+                }
+                if (filter == null) { // not associated with a HashSplitterFieldMapper OR wildcardFilter/Query() returned null
+                    // Fallback on the same code as org.elasticsearch.index.query.WildcardQueryParser
+                    fieldName = smartNameFieldMappers.mapper().names().indexName();
+                    value = smartNameFieldMappers.mapper().indexedValue(value);
+                }
+            } finally {
+                if (smartNameFieldMappers.explicitTypeInNameWithDocMapper()) {
+                    QueryParseContext.setTypes(previousTypes);
+                }
             }
         }
         if (filter == null) {
-            WildcardFilter f = new WildcardFilter(new Term(fieldName, value), wildcardOne, wildcardAny);
+            WildcardFilter f = new WildcardFilter(new Term(fieldName, value));
             filter = f;
         }
-        return wrapSmartNameFilter(filter, smartNameFieldMappers, parseContext);
+
+        if (cache) {
+            filter = parseContext.cacheFilter(filter, cacheKey);
+        }
+        filter = wrapSmartNameFilter(filter, smartNameFieldMappers, parseContext);
+        if (filterName != null) {
+            parseContext.addNamedFilter(filterName, filter);
+        }
+
+        return filter;
     }
 }
