@@ -442,7 +442,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         // Use HashSplitterSearch* analysis and post-process it to create the real query
         TokenStream tok = null;
         try {
-            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok = indexAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
             tok.reset();
         } catch (IOException e) {
             return null;
@@ -472,7 +472,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         // Use HashSplitterSearch* analysis and post-process it to create the real filter
         TokenStream tok = null;
         try {
-            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok = indexAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
             tok.reset();
         } catch (IOException e) {
             return null;
