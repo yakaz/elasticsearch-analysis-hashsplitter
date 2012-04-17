@@ -44,6 +44,7 @@ import static org.elasticsearch.client.Requests.refreshRequest;
 import static org.elasticsearch.common.io.Streams.copyToStringFromClasspath;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static org.elasticsearch.index.query.FilterBuilders.termFilter;
 import static org.elasticsearch.index.query.QueryBuilders.fieldQuery;
 import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
@@ -193,6 +194,39 @@ public class HashSplitterFieldMapperTests {
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "0011223344556688"))).actionGet();
         assertThat("term query on different value, same prefix", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testTermFilters() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength2-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        // We would like these to work, but it doesn't seem possible...
+        // (ie. having a term filter that is *not analyzed*. it instead goes through fieldFilter)
+//        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "A00")))).actionGet();
+//        assertThat("term filter", countResponse.count(), equalTo(1l));
+//
+//        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "B22")))).actionGet();
+//        assertThat("term filter with unexisting term", countResponse.count(), equalTo(0l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "0011223344556677")))).actionGet();
+        assertThat("term filter on exact value", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "00112233445566")))).actionGet();
+        assertThat("term filter on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "0011223344556")))).actionGet();
+        assertThat("term filter on a prefix with incomplete chunk", countResponse.count(), equalTo(0l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "0011223344556688")))).actionGet();
+        assertThat("term filter on different value, same prefix", countResponse.count(), equalTo(0l));
     }
 
     @Test

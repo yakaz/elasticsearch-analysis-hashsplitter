@@ -285,4 +285,26 @@ public class HashSplitterQueryParsersTests {
         assertThat("wildcard filter on inexistent term", countResponse.count(), equalTo(0l));
     }
 
+    @Test
+    public void testCoverage() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength4-prefixesLowercasedAlphabet-size16Fixed-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111122223333").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterTermQuery("hash", "a0000").boost(2.0f))).actionGet();
+        assertThat(countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "a0000").filterName("hash:a0000").cache(true).cacheKey("hash:a0000")))).actionGet();
+        assertThat(countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "000*").filterName("hash:0000*").cache(true).cacheKey("hash:000*")))).actionGet();
+        assertThat(countResponse.count(), equalTo(1l));
+    }
+
 }
