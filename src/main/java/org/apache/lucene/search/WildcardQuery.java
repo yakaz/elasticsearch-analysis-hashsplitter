@@ -23,9 +23,9 @@ import org.apache.lucene.util.ToStringUtils;
 
 import java.io.IOException;
 
-/** Implements the wildcard search query. Supported wildcards are <code>*</code>, which
+/** Implements the wildcard search query. By default, <code>*</code>
  * matches any character sequence (including the empty one), and <code>?</code>,
- * which matches any single character. Note this query can be slow, as it
+ * matches any single character. Note this query can be slow, as it
  * needs to iterate over many terms. In order to prevent extremely slow WildcardQueries,
  * a Wildcard term should not start with one of the wildcards <code>*</code> or
  * <code>?</code>.
@@ -36,11 +36,19 @@ import java.io.IOException;
  *
  * @see WildcardTermEnum */
 public class WildcardQuery extends MultiTermQuery {
+
+    public static final char DEFAULT_WILDCARD_ONE = '?';
+    public static final char DEFAULT_WILDCARD_ANY = '*';
+
     private boolean termContainsWildcard;
     private boolean termIsPrefix;
     protected Term term;
     private char wildcardOne;
     private char wildcardAny;
+
+    public WildcardQuery(Term term) {
+        this(term, DEFAULT_WILDCARD_ONE, DEFAULT_WILDCARD_ANY);
+    }
 
     public WildcardQuery(Term term, char wildcardOne, char wildcardAny) {
         this.term = term;
@@ -83,6 +91,18 @@ public class WildcardQuery extends MultiTermQuery {
         }
         buffer.append(term.text());
         buffer.append(ToStringUtils.boost(getBoost()));
+        if (wildcardOne != DEFAULT_WILDCARD_ONE) {
+            buffer.append(',');
+            buffer.append(DEFAULT_WILDCARD_ONE);
+            buffer.append('=');
+            buffer.append(wildcardOne);
+        }
+        if (wildcardAny != DEFAULT_WILDCARD_ANY) {
+            buffer.append(',');
+            buffer.append(DEFAULT_WILDCARD_ANY);
+            buffer.append('=');
+            buffer.append(wildcardAny);
+        }
         return buffer.toString();
     }
 

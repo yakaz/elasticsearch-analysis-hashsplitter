@@ -20,30 +20,32 @@
 package org.elasticsearch.index.query;
 
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.WildcardQuery;
+import org.apache.lucene.search.QueryWrapperFilter;
+import org.apache.lucene.search.WildcardFilter;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.index.cache.filter.support.CacheKeyFilter;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.mapper.hashsplitter.CustomWildcardSearchFieldMapper;
 import org.elasticsearch.index.mapper.hashsplitter.HashSplitterFieldMapper;
-import org.elasticsearch.index.query.support.QueryParsers;
 
 import java.io.IOException;
 
-import static org.elasticsearch.index.query.support.QueryParsers.wrapSmartNameQuery;
+import static org.elasticsearch.index.query.support.QueryParsers.wrapSmartNameFilter;
 
 /**
  *
  */
-public class HashSplitterWildcardQueryParser implements QueryParser {
+public class HashSplitterWildcardFilterParser implements FilterParser {
 
     public static final String NAME = "hashsplitter_wildcard";
 
     @Inject
-    public HashSplitterWildcardQueryParser() {
+    public HashSplitterWildcardFilterParser() {
     }
 
     @Override
@@ -52,7 +54,7 @@ public class HashSplitterWildcardQueryParser implements QueryParser {
     }
 
     @Override
-    public Query parse(QueryParseContext parseContext) throws IOException, QueryParsingException {
+    public Filter parse(QueryParseContext parseContext) throws IOException, QueryParsingException {
         XContentParser parser = parseContext.parser();
 
         XContentParser.Token token = parser.nextToken();
@@ -60,12 +62,13 @@ public class HashSplitterWildcardQueryParser implements QueryParser {
             throw new QueryParsingException(parseContext.index(), "["+NAME+"] query malformed, no field");
         }
         String fieldName = parser.currentName();
-        String rewriteMethod = null;
 
+        boolean cache = false;
+        CacheKeyFilter.Key cacheKey = null;
+        String filterName = null;
         String value = null;
         char wildcardOne = HashSplitterFieldMapper.Defaults.WILDCARD_ONE;
         char wildcardAny = HashSplitterFieldMapper.Defaults.WILDCARD_ANY;
-        float boost = 1.0f;
         token = parser.nextToken();
         if (token == XContentParser.Token.START_OBJECT) {
             String currentFieldName = null;
@@ -85,10 +88,12 @@ public class HashSplitterWildcardQueryParser implements QueryParser {
                         if (parser.textLength() != 1)
                             throw new QueryParsingException(parseContext.index(), "["+NAME+"] query only support single char [" + currentFieldName + "]");
                         wildcardAny = parser.text().charAt(0);
-                    } else if ("boost".equals(currentFieldName)) {
-                        boost = parser.floatValue();
-                    } else if ("rewrite".equals(currentFieldName)) {
-                        rewriteMethod = parser.textOrNull();
+                    } else if ("_name".equals(currentFieldName)) {
+                        filterName = parser.text();
+                    } else if ("_cache".equals(currentFieldName)) {
+                        cache = parser.booleanValue();
+                    } else if ("_cache_key".equals(currentFieldName) || "_cacheKey".equals(currentFieldName)) {
+                        cacheKey = new CacheKeyFilter.Key(parser.text());
                     } else {
                         throw new QueryParsingException(parseContext.index(), "["+NAME+"] query does not support [" + currentFieldName + "]");
                     }
@@ -104,26 +109,30 @@ public class HashSplitterWildcardQueryParser implements QueryParser {
             throw new QueryParsingException(parseContext.index(), "No value specified for "+NAME+" query");
         }
 
-        Query query = null;
+        Filter filter = null;
         MapperService.SmartNameFieldMappers smartNameFieldMappers = parseContext.smartFieldMappers(fieldName);
         if (smartNameFieldMappers != null && smartNameFieldMappers.hasMapper()) {
             FieldMapper mapper = smartNameFieldMappers.mapper();
             if (mapper != null && mapper instanceof CustomWildcardSearchFieldMapper) {
                 CustomWildcardSearchFieldMapper hashsplitterMapper = (CustomWildcardSearchFieldMapper) mapper;
-                query = hashsplitterMapper.wildcardQuery(value, QueryParsers.parseRewriteMethod(rewriteMethod), parseContext);
+                filter = hashsplitterMapper.wildcardFilter(value, parseContext);
+                if (filter == null) {
+                    // No useful wildcardFilter() implementation, try wildcardQuery()
+                    Query query = hashsplitterMapper.wildcardQuery(value, MultiTermQuery.CONSTANT_SCORE_FILTER_REWRITE, parseContext);
+                    if (query != null)
+                        filter = new QueryWrapperFilter(query);
+                }
             }
-            if (query == null) { // not associated with a HashSplitterFieldMapper OR wildcardQuery() returned null
+            if (filter == null) { // not associated with a HashSplitterFieldMapper OR wildcardFilter/Query() returned null
                 // Fallback on the same code as org.elasticsearch.index.query.WildcardQueryParser
                 fieldName = smartNameFieldMappers.mapper().names().indexName();
                 value = smartNameFieldMappers.mapper().indexedValue(value);
             }
         }
-        if (query == null) {
-            WildcardQuery q = new WildcardQuery(new Term(fieldName, value), wildcardOne, wildcardAny);
-            q.setRewriteMethod(QueryParsers.parseRewriteMethod(rewriteMethod));
-            query = q;
+        if (filter == null) {
+            WildcardFilter f = new WildcardFilter(new Term(fieldName, value), wildcardOne, wildcardAny);
+            filter = f;
         }
-        query.setBoost(boost);
-        return wrapSmartNameQuery(query, smartNameFieldMappers, parseContext);
+        return wrapSmartNameFilter(filter, smartNameFieldMappers, parseContext);
     }
 }

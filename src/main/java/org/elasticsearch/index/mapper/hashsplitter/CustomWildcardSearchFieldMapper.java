@@ -38,4 +38,14 @@ public interface CustomWildcardSearchFieldMapper {
      */
     public Query wildcardQuery(String value, @Nullable MultiTermQuery.RewriteMethod method, @Nullable QueryParseContext context);
 
+    /**
+     * Return the actual {@link org.apache.lucene.search.Filter} to be performed against the current field
+     * for the given value.
+     * @param value Value to be searched, with possible wildcards.
+     * @param context The current parser context.
+     * @return A {@link org.apache.lucene.search.WildcardFilter}, or any other {@link org.apache.lucene.search.Filter}
+     *         to be used to perform the actual filter, or null to use the default, fallback WildcardFilter.
+     */
+    public Filter wildcardFilter(String value, @Nullable QueryParseContext context);
+
 }

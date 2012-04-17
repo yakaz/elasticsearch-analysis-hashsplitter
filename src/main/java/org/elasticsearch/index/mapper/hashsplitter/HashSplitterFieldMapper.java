@@ -33,6 +33,7 @@ import org.apache.lucene.search.PrefixFilter;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.WildcardFilter;
 import org.apache.lucene.search.WildcardQuery;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
@@ -70,8 +71,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         public static final int CHUNK_LENGTH = 1;
         public static final String PREFIX = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.";
         public static final Integer SIZE = null;
-        public static final char WILDCARD_ONE = '?';
-        public static final char WILDCARD_ANY = '*';
+        public static final char WILDCARD_ONE = WildcardQuery.DEFAULT_WILDCARD_ONE;
+        public static final char WILDCARD_ANY = WildcardQuery.DEFAULT_WILDCARD_ANY;
     }
 
     public static class Builder extends AbstractFieldMapper.Builder<Builder, HashSplitterFieldMapper> {
@@ -174,7 +175,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
      *  field1 : {
      *      type : "hashsplitter",
      *      settings: {
-     *          chunk_length : 2,
+     *          chunk_length : 1,
      *          size : "variable" | 32,
      *          wildcard_one : "?",
      *          wildcard_any : "*"
@@ -221,9 +222,11 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
                     return (Integer) node;
                 return ((Number) node).intValue();
             }
-            if ("variable".equals(node.toString()))
+            try {
+                return Integer.valueOf(node.toString());
+            } catch (NumberFormatException ex) {
                 return null;
-            return Integer.getInteger(node.toString());
+            }
         }
 
     }
@@ -551,6 +554,31 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             q = null;
         }
         return q;
+    }
+
+    @Override
+    public Filter wildcardFilter(String value, @Nullable QueryParseContext context) {
+        // Use HashSplitterSearch* analysis and post-process it to create the real query
+        TokenStream tok = null;
+        try {
+            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok.reset();
+        } catch (IOException e) {
+            return null;
+        }
+        CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
+        BooleanFilter f = new BooleanFilter();
+        try {
+            while (tok.incrementToken()) {
+                f.add(new WildcardFilter(names().createIndexNameTerm(termAtt.toString()), wildcardOne, wildcardAny), BooleanClause.Occur.MUST);
+            }
+            tok.end();
+            tok.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            f = null;
+        }
+        return f;
     }
 
 }
