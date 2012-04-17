@@ -33,6 +33,7 @@ import org.apache.lucene.search.PrefixFilter;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.WildcardQuery;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.FastStringReader;
@@ -54,7 +55,7 @@ import java.util.Map;
 import static org.elasticsearch.common.xcontent.support.XContentMapValues.nodeIntegerValue;
 import static org.elasticsearch.index.mapper.core.TypeParsers.parseField;
 
-public class HashSplitterFieldMapper extends StringFieldMapper {
+public class HashSplitterFieldMapper extends StringFieldMapper implements CustomWildcardSearchFieldMapper {
 
     public static final String CONTENT_TYPE = "hashsplitter";
 
@@ -525,6 +526,31 @@ public class HashSplitterFieldMapper extends StringFieldMapper {
     public Query fuzzyQuery(String value, double minSim, int prefixLength, int maxExpansions) {
         // Not supported for now
         return null; // will fallback to an unusable default query
+    }
+
+    @Override
+    public Query wildcardQuery(String value, @Nullable MultiTermQuery.RewriteMethod method, @Nullable QueryParseContext context) {
+        // Use HashSplitterSearch* analysis and post-process it to create the real query
+        TokenStream tok = null;
+        try {
+            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok.reset();
+        } catch (IOException e) {
+            return null;
+        }
+        CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
+        BooleanQuery q = new BooleanQuery();
+        try {
+            while (tok.incrementToken()) {
+                q.add(new WildcardQuery(names().createIndexNameTerm(termAtt.toString()), wildcardOne, wildcardAny), BooleanClause.Occur.MUST);
+            }
+            tok.end();
+            tok.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            q = null;
+        }
+        return q;
     }
 
 }

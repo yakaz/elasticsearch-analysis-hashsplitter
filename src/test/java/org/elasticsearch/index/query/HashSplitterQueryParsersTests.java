@@ -44,6 +44,7 @@ import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilde
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.index.query.HashSplitterTermFilterBuilder.hashSplitterTermFilter;
 import static org.elasticsearch.index.query.HashSplitterTermQueryBuilder.hashSplitterTermQuery;
+import static org.elasticsearch.index.query.HashSplitterWildcardQueryBuilder.hashSplitterWildcardQuery;
 import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
@@ -131,6 +132,64 @@ public class HashSplitterQueryParsersTests {
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "z9999")))).actionGet();
         assertThat("term filter on inexistent term", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testWildcardQueryVariableSize() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength4-prefixesLowercasedAlphabet-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111122223333").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "????1111*"))).actionGet();
+        assertThat("wildcard query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard query", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "000*"))).actionGet();
+        assertThat("wildcard query on a prefix", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "*3333"))).actionGet();
+        assertThat("wildcard query on a suffix with default variable size", countResponse.count(), equalTo(0l)); // no match because of variable size
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "000*3"))).actionGet();
+        assertThat("wildcard query on a prefix and suffix", countResponse.count(), equalTo(0l)); // no match because of variable size
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "99*99"))).actionGet();
+        assertThat("wildcard query on inexistent term", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testWildcardQueryFixedSize() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength4-prefixesLowercasedAlphabet-size16Fixed-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111122223333").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "????1111*"))).actionGet();
+        assertThat("wildcard query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard query", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "000*"))).actionGet();
+        assertThat("wildcard query on a prefix", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "*3333"))).actionGet();
+        assertThat("wildcard query on a suffix with fixed size", countResponse.count(), equalTo(1l)); // matches because of fixed size
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "000*3"))).actionGet();
+        assertThat("wildcard query on a prefix and suffix", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "99*99"))).actionGet();
+        assertThat("wildcard query on inexistent term", countResponse.count(), equalTo(0l));
     }
 
 }
