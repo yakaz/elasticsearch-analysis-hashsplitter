@@ -50,6 +50,7 @@ import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.index.query.QueryBuilders.prefixQuery;
 import static org.elasticsearch.index.query.QueryBuilders.queryString;
+import static org.elasticsearch.index.query.QueryBuilders.rangeQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
 import static org.elasticsearch.index.query.QueryBuilders.textQuery;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
@@ -277,6 +278,78 @@ public class HashSplitterFieldMapperTests {
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("0011223344556688").defaultField("hash"))).actionGet();
         assertThat("string query on different value, same prefix", countResponse.count(), equalTo(0l));
+    }
+
+    @Test
+    public void testRangeQueries() throws Exception {
+        String mapping = copyToStringFromClasspath("/chunklength4-prefixesLowercasedAlphabet-size16Fixed-mapping.json");
+
+        node.client().admin().indices().putMapping(putMappingRequest("test").type("splitted_hashes").source(mapping)).actionGet();
+
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000000000000000").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111099999999").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111100000000").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111100000001").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111100010000").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111122223333").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000111199999999").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000199900000000").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000199999999999").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000222200000000").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "0000222200000001").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "1111000000000000").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "1111000000000001").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "2222000000000000").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "2222000000000001").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "3333000000000000").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "3333000000000001").endObject())).actionGet();
+        node.client().admin().indices().refresh(refreshRequest()).actionGet();
+
+        CountResponse countResponse;
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("1111000000000000").includeLower(true).to("2222000000000000").includeUpper(true))).actionGet();
+        assertThat("range query no common prefix", countResponse.count(), equalTo(3l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000111100009999").includeUpper(true))).actionGet();
+        assertThat("range query common until last chunk", countResponse.count(), equalTo(2l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000222200000000").includeUpper(true))).actionGet();
+        assertThat("closed range query", countResponse.count(), equalTo(8l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(false).to("0000222200000000").includeUpper(true))).actionGet();
+        assertThat("open start range query", countResponse.count(), equalTo(7l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000222200000000").includeUpper(false))).actionGet();
+        assertThat("open end range query", countResponse.count(), equalTo(7l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(false).to("0000222200000000").includeUpper(false))).actionGet();
+        assertThat("open range query", countResponse.count(), equalTo(6l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000111100000000").includeUpper(true))).actionGet();
+        assertThat("singleton range query", countResponse.count(), equalTo(1l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000111100000000").includeUpper(false))).actionGet();
+        assertThat("empty range query", countResponse.count(), equalTo(0l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from(null).includeLower(false).to(null).includeUpper(false))).actionGet();
+        assertThat("-inf;+inf range query", countResponse.count(), equalTo(17l));
     }
 
 }

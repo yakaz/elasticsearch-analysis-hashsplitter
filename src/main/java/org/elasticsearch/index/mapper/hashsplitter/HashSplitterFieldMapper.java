@@ -27,12 +27,15 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanFilter;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.MatchNoDocsFilter;
 import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.PrefixFilter;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TermRangeLengthFilter;
 import org.apache.lucene.search.WildcardFilter;
 import org.apache.lucene.search.WildcardQuery;
 import org.elasticsearch.common.Nullable;
@@ -51,6 +54,9 @@ import org.elasticsearch.index.mapper.core.StringFieldMapper;
 import org.elasticsearch.index.query.QueryParseContext;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import static org.elasticsearch.common.xcontent.support.XContentMapValues.nodeIntegerValue;
@@ -250,7 +256,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
     protected char wildcardOne;
 
     protected char wildcardAny;
-    
+
     protected HashSplitterAnalyzer indexAnalyzer;
 
     protected HashSplitterSearchAnalyzer searchAnalyzer;
@@ -503,16 +509,185 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
 
     @Override
     public Query rangeQuery(String lowerTerm, String upperTerm, boolean includeLower, boolean includeUpper, @Nullable QueryParseContext context) {
-        // TODO Remove final "*" and use special HashSplitterSearch* analysis and post-process it to create real queries
-        // TODO get inspiration from NumericRangeQuery
-        return super.rangeQuery(lowerTerm, upperTerm, includeLower, includeUpper, context);
+        // Delegate to rangeFilter(), and wrap it into a query
+        Filter filter = rangeFilter(lowerTerm, upperTerm, includeLower, includeUpper, context);
+        if (filter == null)
+            return null;
+        return new ConstantScoreQuery(filter);
     }
 
     @Override
     public Filter rangeFilter(String lowerTerm, String upperTerm, boolean includeLower, boolean includeUpper, @Nullable QueryParseContext context) {
-        // TODO Remove final "*" and use special HashSplitterSearch* analysis and post-process it to create real queries
-        // TODO get inspiration from NumericRangeQuery
-        return super.rangeFilter(lowerTerm, upperTerm, includeLower, includeUpper, context);
+        // Special case: -infinity to +infinity
+        if (lowerTerm == null && upperTerm == null) {
+            if (sizeIsVariable)
+                return null;
+            StringBuilder sbWildcardPart = new StringBuilder();
+            for (int i = 0 ; i < chunkLength ; i++)
+                sbWildcardPart.append(wildcardOne);
+            String wildcardPart = sbWildcardPart.toString();
+            BooleanFilter filter = new BooleanFilter();
+            for (int i = sizeValue / chunkLength - 1 ; i >= 0 ; i--) {
+                filter.add(new WildcardFilter(names().createIndexNameTerm(prefix.charAt(i) + wildcardPart)), BooleanClause.Occur.MUST);
+            }
+            if (sizeValue % chunkLength != 0) {
+                // If the size is not dividible by chunkLength,
+                // we still have a last chunk, but that has a shorter length
+                filter.add(new WildcardFilter(names().createIndexNameTerm(prefix.charAt(sizeValue/chunkLength+1) + wildcardPart.substring(0, sizeValue % chunkLength))), BooleanClause.Occur.MUST);
+            }
+            return filter;
+        }
+        // Check variable size and lengths
+        if (sizeIsVariable) {
+            if (!includeLower && !includeUpper
+                    || includeLower && includeUpper && lowerTerm.length() != upperTerm.length())
+                return null;
+        } else {
+            if (includeLower && lowerTerm.length() != sizeValue
+                    || includeUpper && upperTerm.length() != sizeValue)
+                return null;
+        }
+        // Check for emptyness
+        if (lowerTerm != null && upperTerm != null) {
+            int cmp = lowerTerm.compareTo(upperTerm);
+            // Bound invertion
+            if (cmp > 0)
+                return MatchNoDocsFilter.INSTANCE;
+            // Equal bounds
+            if (cmp == 0) {
+                // and both inclusive bounds: singleton
+                if (includeLower && includeUpper) {
+                    // Special case: equal terms
+                    return fieldFilter(lowerTerm, context);
+                }
+                // otherwise, empty range
+                return MatchNoDocsFilter.INSTANCE;
+            }
+        }
+        // Analyze lower and upper terms
+        List<String> lowerTerms = new LinkedList<String>();
+        List<String> upperTerms = new LinkedList<String>();
+        if (lowerTerm != null) {
+            TokenStream tok = null;
+            try {
+                tok = indexAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(lowerTerm));
+                tok.reset();
+            } catch (IOException e) {
+                return null;
+            }
+            CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
+            try {
+                while (tok.incrementToken())
+                    lowerTerms.add(termAtt.toString());
+                tok.end();
+                tok.close();
+            } catch (IOException e) {
+                return null;
+            }
+        }
+        if (upperTerm != null) {
+            TokenStream tok = null;
+            try {
+                tok = indexAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(upperTerm));
+                tok.reset();
+            } catch (IOException e) {
+                return null;
+            }
+            CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
+            try {
+                while (tok.incrementToken())
+                    upperTerms.add(termAtt.toString());
+                tok.end();
+                tok.close();
+            } catch (IOException e) {
+                return null;
+            }
+        }
+        // Generate the filter
+        BooleanFilter topLevelAndFilter = new BooleanFilter();
+        Iterator<String> lowers = lowerTerms.iterator();
+        Iterator<String> uppers = upperTerms.iterator();
+        String currLower = null;
+        String currUpper = null;
+
+        // First, the common prefix
+        while (lowers.hasNext() && uppers.hasNext()) {
+            currLower = lowers.next();
+            currUpper = uppers.next();
+            // The last part cannot be part of the prefix
+            // because that special case has already been handled
+            if (!lowers.hasNext() || !uppers.hasNext())
+                break;
+            if (!currLower.equals(currUpper))
+                break;
+            topLevelAndFilter.add(new TermFilter(names().createIndexNameTerm(currLower)), BooleanClause.Occur.MUST);
+        }
+
+        String subPrefixLower = currLower;
+        BooleanFilter secondLevelOrFilter = new BooleanFilter();
+        BooleanFilter lastFilter;
+        // Add the range part of the query (secondLevelOrFilter) to the prefix part is already in topLevelAndFilter
+        topLevelAndFilter.add(secondLevelOrFilter, BooleanClause.Occur.MUST);
+        // We still have secondLevelOrFilter to populate
+
+        lastFilter = new BooleanFilter();
+        // Handle the first diverging token of the lowerTerm (if it's not also the last available!)
+        if (lowers.hasNext()) {
+            lastFilter.add(new TermFilter(names().createIndexNameTerm(currLower)), BooleanClause.Occur.MUST);
+            currLower = lowers.next();
+        }
+        secondLevelOrFilter.add(lastFilter, BooleanClause.Occur.SHOULD);
+        // Then get to the last token of the lowerTerm
+        while (lowers.hasNext()) {
+            BooleanFilter orFilter = new BooleanFilter();
+            lastFilter.add(orFilter, BooleanClause.Occur.MUST);
+            orFilter.add(new TermRangeLengthFilter(names().indexName(), currLower, luceneTermUpperBound(currLower), false, false, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.SHOULD);
+            BooleanFilter nextFilter = new BooleanFilter();
+            nextFilter.add(new TermFilter(names().createIndexNameTerm(currLower)), BooleanClause.Occur.MUST);
+            orFilter.add(nextFilter, BooleanClause.Occur.SHOULD);
+            lastFilter = nextFilter;
+            currLower = lowers.next();
+        }
+        // Handle the last token of the lowerTerm
+        lastFilter.add(new TermRangeLengthFilter(names().indexName(), currLower, luceneTermUpperBound(currLower), includeLower, false, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.MUST);
+
+        // Range from the non prefix part of the lowerTerm to the non prefix part of the upperTerm
+        secondLevelOrFilter.add(new TermRangeLengthFilter(names().indexName(), subPrefixLower, currUpper, false, false, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.SHOULD);
+
+        lastFilter = new BooleanFilter();
+        // Handle the first diverging token of the upperTerm (if it's not also the last available!)
+        if (uppers.hasNext()) {
+            lastFilter.add(new TermFilter(names().createIndexNameTerm(currUpper)), BooleanClause.Occur.MUST);
+            currUpper = uppers.next();
+        }
+        secondLevelOrFilter.add(lastFilter, BooleanClause.Occur.SHOULD);
+        // Then get to the last token of the upperTerm
+        while (uppers.hasNext()) {
+            BooleanFilter orFilter = new BooleanFilter();
+            lastFilter.add(orFilter, BooleanClause.Occur.MUST);
+            orFilter.add(new TermRangeLengthFilter(names().indexName(), luceneTermLowerBound(currUpper), currUpper, false, false, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.SHOULD);
+            BooleanFilter nextFilter = new BooleanFilter();
+            nextFilter.add(new TermFilter(names().createIndexNameTerm(currUpper)), BooleanClause.Occur.MUST);
+            orFilter.add(nextFilter, BooleanClause.Occur.SHOULD);
+            lastFilter = nextFilter;
+            currUpper = uppers.next();
+        }
+        // Handle the last token of the upperTerm
+        lastFilter.add(new TermRangeLengthFilter(names().indexName(), luceneTermLowerBound(currUpper), currUpper, false, includeUpper, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.MUST);
+
+        return topLevelAndFilter;
+    }
+    private String luceneTermUpperBound(String term) {
+        // Lucene terms are ordered lexicographically (by UTF-16 character code)
+        // so we should not use:
+        //   return Character.toString(prefix.charAt((prefix.indexOf(term.charAt(0))+1)%prefix.length()));
+        // that will get the next *prefix* (the prefix for the *lower level*)
+        // but merely the next *char*!
+        return Character.toString((char) (term.charAt(0) + 1));
+    }
+    private String luceneTermLowerBound(String term) {
+        // Simply the prefix alone
+        return term.substring(0, 1);
     }
 
     @Override
