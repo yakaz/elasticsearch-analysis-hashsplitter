@@ -107,12 +107,15 @@ public class HashSplitterFieldMapperTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(fieldQuery("hash", "01234567"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("field query on exact value", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(fieldQuery("hash", "0123456"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("field query on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(fieldQuery("hash", "01234568"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("field query on different value, same prefix", countResponse.count(), equalTo(0l));
     }
 
@@ -129,12 +132,15 @@ public class HashSplitterFieldMapperTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(prefixQuery("hash", "00112233445566"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("prefix query", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(prefixQuery("hash", "0011223344556"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("prefix query with incomplete last chunk", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(prefixQuery("hash", "00112233445567"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("prefix query with unexisting prefix", countResponse.count(), equalTo(0l));
     }
 
@@ -155,12 +161,15 @@ public class HashSplitterFieldMapperTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), prefixFilter("hash", "00112233445566")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("prefix filter", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), prefixFilter("hash", "0011223344556")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("prefix filter with incomplete last chunk", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), prefixFilter("hash", "00112233445567")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("prefix filter with unexisting prefix", countResponse.count(), equalTo(0l));
     }
 
@@ -185,15 +194,19 @@ public class HashSplitterFieldMapperTests {
 //        assertThat("term query with unexisting term", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "0011223344556677"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term query on exact value", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "00112233445566"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term query on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "0011223344556"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term query on a prefix with incomplete chunk", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "0011223344556688"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term query on different value, same prefix", countResponse.count(), equalTo(0l));
     }
 
@@ -218,15 +231,19 @@ public class HashSplitterFieldMapperTests {
 //        assertThat("term filter with unexisting term", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "0011223344556677")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term filter on exact value", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "00112233445566")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term filter on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "0011223344556")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term filter on a prefix with incomplete chunk", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "0011223344556688")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term filter on different value, same prefix", countResponse.count(), equalTo(0l));
     }
 
@@ -243,15 +260,19 @@ public class HashSplitterFieldMapperTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(textQuery("hash", "0011223344556677"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("text query on exact value", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(textQuery("hash", "00112233445566"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("text query on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(textQuery("hash", "0011223344556"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("text query on a prefix with incomplete chunk", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(textQuery("hash", "0011223344556688"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("text query on different value, same prefix", countResponse.count(), equalTo(0l));
     }
 
@@ -268,15 +289,19 @@ public class HashSplitterFieldMapperTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("0011223344556677").defaultField("hash"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("string query on exact value", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("00112233445566").defaultField("hash"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("string query on a prefix", countResponse.count(), equalTo(1l)); // should match, unfortunately!
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("0011223344556").defaultField("hash"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("string query on a prefix with incomplete chunk", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(queryString("0011223344556688").defaultField("hash"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("string query on different value, same prefix", countResponse.count(), equalTo(0l));
     }
 
@@ -325,30 +350,39 @@ public class HashSplitterFieldMapperTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("1111000000000000").includeLower(true).to("2222000000000000").includeUpper(true))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("range query no common prefix", countResponse.count(), equalTo(3l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000111100009999").includeUpper(true))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("range query common until last chunk", countResponse.count(), equalTo(2l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000222200000000").includeUpper(true))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("closed range query", countResponse.count(), equalTo(8l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(false).to("0000222200000000").includeUpper(true))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("open start range query", countResponse.count(), equalTo(7l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000222200000000").includeUpper(false))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("open end range query", countResponse.count(), equalTo(7l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(false).to("0000222200000000").includeUpper(false))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("open range query", countResponse.count(), equalTo(6l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000111100000000").includeUpper(true))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("singleton range query", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("0000111100000000").includeLower(true).to("0000111100000000").includeUpper(false))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("empty range query", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from(null).includeLower(false).to(null).includeUpper(false))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("-inf;+inf range query", countResponse.count(), equalTo(17l));
     }
 

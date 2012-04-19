@@ -102,13 +102,15 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterTermQuery("hash", "b1111"))).actionGet();
-        assertThat("term query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term query", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterTermQuery("hash", "a000"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term query on a prefix", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterTermQuery("hash", "z9999"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term query on inexistent term", countResponse.count(), equalTo(0l));
     }
 
@@ -125,13 +127,15 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "b1111")))).actionGet();
-        assertThat("term filter existence", countResponse.failedShards(), equalTo(0));
+        assertThat("term filter registered", countResponse.failedShards(), equalTo(0));
         assertThat("term filter", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "a000")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term filter on a prefix", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "z9999")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("term filter on inexistent term", countResponse.count(), equalTo(0l));
     }
 
@@ -148,7 +152,7 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "????1111*"))).actionGet();
-        assertThat("wildcard query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard query registered", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard query", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "000*"))).actionGet();
@@ -177,7 +181,7 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "____1111%"))).actionGet();
-        assertThat("wildcard query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard query registered", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard query with SQL-flavoured wildcards", countResponse.count(), equalTo(1l));
     }
 
@@ -194,19 +198,23 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "????1111*")))).actionGet();
-        assertThat("wildcard filter existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard filter registered", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "000*")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter on a prefix", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "*3333")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter on a suffix with default variable size", countResponse.count(), equalTo(0l)); // no match because of variable size
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "000*3")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter on a prefix and suffix", countResponse.count(), equalTo(0l)); // no match because of variable size
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "99*99")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter on inexistent term", countResponse.count(), equalTo(0l));
     }
 
@@ -223,7 +231,7 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "____1111%")))).actionGet();
-        assertThat("wildcard query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard query registered", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard query with SQL-flavoured wildcards", countResponse.count(), equalTo(1l));
     }
 
@@ -240,19 +248,23 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "????1111*"))).actionGet();
-        assertThat("wildcard query existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard query registered", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard query", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "000*"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard query on a prefix", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "*3333"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard query on a suffix with fixed size", countResponse.count(), equalTo(1l)); // matches because of fixed size
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "000*3"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard query on a prefix and suffix", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterWildcardQuery("hash", "99*99"))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard query on inexistent term", countResponse.count(), equalTo(0l));
     }
 
@@ -269,19 +281,23 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "????1111*")))).actionGet();
-        assertThat("wildcard filter existence", countResponse.failedShards(), equalTo(0));
+        assertThat("wildcard filter registered", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "000*")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter on a prefix", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "*3333")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter on a suffix with fixed size", countResponse.count(), equalTo(1l)); // matches because of fixed size
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "000*3")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter on a prefix and suffix", countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "99*99")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("wildcard filter on inexistent term", countResponse.count(), equalTo(0l));
     }
 
@@ -298,12 +314,15 @@ public class HashSplitterQueryParsersTests {
         CountResponse countResponse;
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(hashSplitterTermQuery("hash", "a0000").boost(2.0f))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat(countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterTermFilter("hash", "a0000").filterName("hash:a0000").cache(true).cacheKey("hash:a0000")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat(countResponse.count(), equalTo(1l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), hashSplitterWildcardFilter("hash", "000*").filterName("hash:0000*").cache(true).cacheKey("hash:000*")))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat(countResponse.count(), equalTo(1l));
     }
 
