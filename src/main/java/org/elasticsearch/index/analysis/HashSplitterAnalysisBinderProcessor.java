@@ -25,15 +25,15 @@ package org.elasticsearch.index.analysis;
 public class HashSplitterAnalysisBinderProcessor extends AnalysisModule.AnalysisBinderProcessor {
 
     @Override public void processTokenFilters(TokenFiltersBindings tokenFiltersBindings) {
-        tokenFiltersBindings.processTokenFilter("hash_splitter", HashSplitterTokenFilterFactory.class);
+        tokenFiltersBindings.processTokenFilter("hashsplitter", HashSplitterTokenFilterFactory.class);
     }
 
     @Override public void processTokenizers(TokenizersBindings tokenizersBindings) {
-        tokenizersBindings.processTokenizer("hash_splitter", HashSplitterTokenizerFactory.class);
+        tokenizersBindings.processTokenizer("hashsplitter", HashSplitterTokenizerFactory.class);
     }
 
     @Override public void processAnalyzers(AnalyzersBindings analyzersBindings) {
-        analyzersBindings.processAnalyzer("hash_splitter", HashSplitterAnalyzerProviderFactory.DefaultProvider.class);
+        analyzersBindings.processAnalyzer("hashsplitter", HashSplitterAnalyzerProviderFactory.DefaultProvider.class);
     }
 
 }

@@ -124,10 +124,4 @@ public class HashSplitterSearchAnalyzerTests {
         closeAnalysis();
     }
 
-    // TODO testSearchWildcardOne
-    // TODO testSearchWildcardAny prefix variable size
-    // TODO testSearchWildcardAny prefix fixed size
-    // TODO testSearchWildcardAny suffix fixed size
-    // TODO testSearchWildcardAny prefix and suffix fixed size
-
 }

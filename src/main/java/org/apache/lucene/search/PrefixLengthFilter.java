@@ -1,13 +1,15 @@
 package org.apache.lucene.search;
 
-public class TermRangeLengthQuery extends MultiTermQueryTermEnumLengthFilter {
+import org.apache.lucene.index.Term;
+
+public class PrefixLengthFilter extends MultiTermQueryWrapperFilter<MultiTermQueryTermEnumLengthFilter> {
 
     private final int minLength;
 
     private final int maxLength;
 
-    public TermRangeLengthQuery(String field, String lowerTerm, String upperTerm, boolean includeLower, boolean includeUpper, int minLength, int maxLength) {
-        super(new TermRangeQuery(field, lowerTerm, upperTerm, includeLower, includeUpper), minLength, maxLength);
+    public PrefixLengthFilter(Term prefix, int minLength, int maxLength) {
+        super(new MultiTermQueryTermEnumLengthFilter(new PrefixQuery(prefix), minLength, maxLength));
         this.minLength = minLength;
         this.maxLength = maxLength;
     }
@@ -21,9 +23,9 @@ public class TermRangeLengthQuery extends MultiTermQueryTermEnumLengthFilter {
     }
 
     @Override
-    public String toString(String field) {
+    public String toString() {
         StringBuilder buffer = new StringBuilder();
-        buffer.append(getFilteredQuery().toString(field));
+        buffer.append(query.getFilteredQuery().toString());
         buffer.append("{length:");
         buffer.append(minLength);
         buffer.append(" TO ");

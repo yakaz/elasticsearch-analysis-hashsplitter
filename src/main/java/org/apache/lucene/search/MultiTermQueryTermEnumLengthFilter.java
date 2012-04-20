@@ -36,7 +36,7 @@ public class MultiTermQueryTermEnumLengthFilter extends MultiTermQuery {
 
     @Override
     public String toString(String field) {
-        return "MultiTermQueryTermEnumLengthFilter(" + filteredQuery.toString(field) + ")";
+        return "MultiTermQueryTermEnumLengthFilter(" + filteredQuery.toString(field) + ", length:[" + minLength + " TO " + maxLength + "])";
     }
 
     public static class LengthFilteredTermEnum extends FilteredTermEnum {

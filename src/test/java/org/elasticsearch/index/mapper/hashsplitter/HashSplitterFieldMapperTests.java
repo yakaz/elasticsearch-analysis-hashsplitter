@@ -181,6 +181,22 @@ public class HashSplitterFieldMapperTests {
 
         node.client().index(indexRequest("test").type("splitted_hashes")
                 .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "00______________").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "__11____________").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "____22__________").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "______33________").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "________44______").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "__________55____").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "____________66__").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "______________77").endObject())).actionGet();
         node.client().admin().indices().refresh(refreshRequest()).actionGet();
 
         CountResponse countResponse;
@@ -188,9 +204,9 @@ public class HashSplitterFieldMapperTests {
         // We would like these to work, but it doesn't seem possible...
         // (ie. having a term query that is *not analyzed*. it instead goes through fieldQuery)
 //        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "A00"))).actionGet();
-//        assertThat("term query", countResponse.count(), equalTo(1l));
+//        assertThat("term query", countResponse.count(), equalTo(2l));
 //
-//        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "B22"))).actionGet();
+//        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "B77"))).actionGet();
 //        assertThat("term query with unexisting term", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(termQuery("hash", "0011223344556677"))).actionGet();
@@ -218,6 +234,22 @@ public class HashSplitterFieldMapperTests {
 
         node.client().index(indexRequest("test").type("splitted_hashes")
                 .source(jsonBuilder().startObject().field("hash", "0011223344556677").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "00______________").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "__11____________").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "____22__________").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "______33________").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "________44______").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "__________55____").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "____________66__").endObject())).actionGet();
+        node.client().index(indexRequest("test").type("splitted_hashes")
+                .source(jsonBuilder().startObject().field("hash", "______________77").endObject())).actionGet();
         node.client().admin().indices().refresh(refreshRequest()).actionGet();
 
         CountResponse countResponse;
@@ -225,9 +257,9 @@ public class HashSplitterFieldMapperTests {
         // We would like these to work, but it doesn't seem possible...
         // (ie. having a term filter that is *not analyzed*. it instead goes through fieldFilter)
 //        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "A00")))).actionGet();
-//        assertThat("term filter", countResponse.count(), equalTo(1l));
+//        assertThat("term filter", countResponse.count(), equalTo(2l));
 //
-//        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "B22")))).actionGet();
+//        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "B77")))).actionGet();
 //        assertThat("term filter with unexisting term", countResponse.count(), equalTo(0l));
 
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(filteredQuery(matchAllQuery(), termFilter("hash", "0011223344556677")))).actionGet();
@@ -384,6 +416,14 @@ public class HashSplitterFieldMapperTests {
         countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from(null).includeLower(false).to(null).includeUpper(false))).actionGet();
         assertThat("successful request", countResponse.failedShards(), equalTo(0));
         assertThat("-inf;+inf range query", countResponse.count(), equalTo(17l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("000011110000").includeLower(true).to("000022220000").includeUpper(true))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
+        assertThat("range query on shorter size complete chunks", countResponse.count(), equalTo(9l));
+
+        countResponse = node.client().count(countRequest("test").types("splitted_hashes").query(rangeQuery("hash").from("00001111000000").includeLower(true).to("00002222000000").includeUpper(true))).actionGet();
+        assertThat("successful request", countResponse.failedShards(), equalTo(0));
+        assertThat("range query on shorter size incomplete chunks", countResponse.count(), equalTo(7l)); // not 8 because 0000222200000000 is excluded because d0000 is greater that d00
     }
 
 }

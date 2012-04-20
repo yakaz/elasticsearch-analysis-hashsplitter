@@ -7,7 +7,7 @@
                 type:"hashsplitter",
                 settings:{
                     chunk_length: 4,
-                    prefix: "abcdefghijklmnopqrstuvwxyz",
+                    prefixes: "abcdefghijklmnopqrstuvwxyz",
                     wildcard_one: "_",
                     wildcard_any: "%"
                 }

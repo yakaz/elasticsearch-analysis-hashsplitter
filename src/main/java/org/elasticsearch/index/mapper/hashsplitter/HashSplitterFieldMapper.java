@@ -32,6 +32,8 @@ import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.MatchNoDocsFilter;
 import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.PrefixFilter;
+import org.apache.lucene.search.PrefixLengthFilter;
+import org.apache.lucene.search.PrefixLengthQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
@@ -75,7 +77,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         public static final Field.Index INDEX = Field.Index.ANALYZED;
         public static final Field.Store STORE = Field.Store.NO;
         public static final int CHUNK_LENGTH = 1;
-        public static final String PREFIX = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.";
+        public static final String PREFIXES = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.";
         public static final Integer SIZE = null;
         public static final char WILDCARD_ONE = WildcardQuery.DEFAULT_WILDCARD_ONE;
         public static final char WILDCARD_ANY = WildcardQuery.DEFAULT_WILDCARD_ANY;
@@ -87,7 +89,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
 
         private int chunkLength = Defaults.CHUNK_LENGTH;
 
-        private String prefix = Defaults.PREFIX;
+        private String prefixes = Defaults.PREFIXES;
 
         private Integer size = Defaults.SIZE;
 
@@ -139,8 +141,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             return this;
         }
 
-        public Builder prefix(String prefix) {
-            this.prefix = prefix;
+        public Builder prefixes(String prefixes) {
+            this.prefixes = prefixes;
             return this;
         }
 
@@ -163,7 +165,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         public HashSplitterFieldMapper build(BuilderContext context) {
             HashSplitterFieldMapper fieldMapper = new HashSplitterFieldMapper(buildNames(context),
                     index, store, boost, nullValue,
-                    chunkLength, prefix, size == null, size == null ? -1 : size.intValue(),
+                    chunkLength, prefixes, size == null, size == null ? -1 : size.intValue(),
                     wildcardOne, wildcardAny);
             fieldMapper.includeInAll(includeInAll);
             return fieldMapper;
@@ -180,6 +182,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
      *      type : "hashsplitter",
      *      settings: {
      *          chunk_length : 1,
+     *          prefixes : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,."
      *          size : "variable" | 32,
      *          wildcard_one : "?",
      *          wildcard_any : "*"
@@ -205,8 +208,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
 
                         if ("chunk_length".equals(propName)) {
                             builder.chunkLength(nodeIntegerValue(propNode));
-                        } else if ("prefix".equals(propName)) {
-                            builder.prefix(propNode.toString());
+                        } else if ("prefixes".equals(propName)) {
+                            builder.prefixes(propNode.toString());
                         } else if ("size".equals(propName)) {
                             builder.size(nodeSizeValue(propNode));
                         } else if ("wildcard_one".equals(propName)) {
@@ -247,7 +250,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
 
     protected int chunkLength;
 
-    protected String prefix;
+    protected String prefixes;
 
     protected boolean sizeIsVariable;
 
@@ -262,19 +265,19 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
     protected HashSplitterSearchAnalyzer searchAnalyzer;
 
     public HashSplitterFieldMapper(Names names, Field.Index index, Field.Store store, float boost, String nullValue,
-                                   int chunkLength, String prefix, boolean sizeIsVariable, int sizeValue,
+                                   int chunkLength, String prefixes, boolean sizeIsVariable, int sizeValue,
                                    char wildcardOne, char wildcardAny) {
         super(names, index, store, Field.TermVector.NO, boost, true, true, nullValue, null, null);
         this.nullValue = nullValue;
         this.includeInAll = null;
         this.chunkLength = chunkLength;
-        this.prefix = prefix;
+        this.prefixes = prefixes;
         this.sizeIsVariable = sizeIsVariable;
         this.sizeValue = sizeValue;
         this.wildcardOne = wildcardOne;
         this.wildcardAny = wildcardAny;
-        this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength, this.prefix);
-        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, this.prefix, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
+        this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength, this.prefixes);
+        this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, this.prefixes, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
     }
 
     @Override
@@ -306,13 +309,13 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             this.includeInAll = casted.includeInAll;
             this.nullValue = casted.nullValue;
             this.chunkLength = casted.chunkLength;
-            this.prefix = casted.prefix;
+            this.prefixes = casted.prefixes;
             this.sizeIsVariable = casted.sizeIsVariable;
             this.sizeValue = casted.sizeValue;
             this.wildcardOne = casted.wildcardOne;
             this.wildcardAny = casted.wildcardAny;
-            this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength, this.prefix);
-            this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, this.prefix, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
+            this.indexAnalyzer = new HashSplitterAnalyzer(this.chunkLength, this.prefixes);
+            this.searchAnalyzer = new HashSplitterSearchAnalyzer(this.chunkLength, this.prefixes, this.wildcardOne, this.wildcardAny, this.sizeIsVariable, this.sizeValue);
         }
     }
 
@@ -357,8 +360,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             if (chunkLength != Defaults.CHUNK_LENGTH) {
                 builder.field("chunk_length", chunkLength);
             }
-            if (prefix != Defaults.PREFIX) {
-                builder.field("prefix", prefix);
+            if (prefixes != Defaults.PREFIXES) {
+                builder.field("prefixes", prefixes);
             }
             if (sizeIsVariable != (Defaults.SIZE == null)
                     || Defaults.SIZE != null && sizeValue != Defaults.SIZE.intValue()) {
@@ -400,7 +403,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         // Use HashSplitterSearch* analysis and post-process it to create the real query
         TokenStream tok = null;
         try {
-            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok = indexAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
             tok.reset();
         } catch (IOException e) {
             return null;
@@ -426,7 +429,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         // Use HashSplitterSearch* analysis and post-process it to create the real query
         TokenStream tok = null;
         try {
-            tok = searchAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
+            tok = indexAnalyzer.reusableTokenStream(names().indexNameClean(), new FastStringReader(value));
             tok.reset();
         } catch (IOException e) {
             return null;
@@ -460,13 +463,22 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
         BooleanQuery q = new BooleanQuery();
         try {
+            int remainingSize = sizeIsVariable ? 0 : sizeValue; // note: prefixes are not included
             while (tok.incrementToken()) {
                 Term term = names().createIndexNameTerm(termAtt.toString());
                 if (termAtt.length() < 1 + chunkLength) {
-                    q.add(new PrefixQuery(term), BooleanClause.Occur.MUST);
+                    if (remainingSize > 0) { // implies size is fixed
+                        if (remainingSize < chunkLength)
+                            q.add(new PrefixLengthQuery(term, 1 + remainingSize, 1 + remainingSize), BooleanClause.Occur.MUST);
+                        else
+                            q.add(new PrefixLengthQuery(term, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.MUST);
+                    } else { // varying size: only limit to the chunkLength
+                        q.add(new PrefixLengthQuery(term, 0, 1 + chunkLength), BooleanClause.Occur.MUST);
+                    }
                 } else {
                     q.add(new TermQuery(term), BooleanClause.Occur.MUST);
                 }
+                remainingSize -= termAtt.length() - 1; // termAtt contains the prefix, remainingSize doesn't take it into account
             }
             tok.end();
             tok.close();
@@ -490,13 +502,22 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         CharTermAttribute termAtt = tok.getAttribute(CharTermAttribute.class);
         BooleanFilter f = new BooleanFilter();
         try {
+            int remainingSize = sizeIsVariable ? 0 : sizeValue; // note: prefixes are not included
             while (tok.incrementToken()) {
                 Term term = names().createIndexNameTerm(termAtt.toString());
                 if (termAtt.length() < 1 + chunkLength) {
-                    f.add(new PrefixFilter(term), BooleanClause.Occur.MUST);
+                    if (remainingSize > 0) { // implies size is fixed
+                        if (remainingSize < chunkLength)
+                            f.add(new PrefixLengthFilter(term, 1 + remainingSize, 1 + remainingSize), BooleanClause.Occur.MUST);
+                        else
+                            f.add(new PrefixLengthFilter(term, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.MUST);
+                    } else { // varying size: only limit to the chunkLength
+                        f.add(new PrefixLengthFilter(term, 0, 1 + chunkLength), BooleanClause.Occur.MUST);
+                    }
                 } else {
                     f.add(new TermFilter(term), BooleanClause.Occur.MUST);
                 }
+                remainingSize -= termAtt.length() - 1; // termAtt contains the prefix, remainingSize doesn't take it into account
             }
             tok.end();
             tok.close();
@@ -528,24 +549,14 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             String wildcardPart = sbWildcardPart.toString();
             BooleanFilter filter = new BooleanFilter();
             for (int i = sizeValue / chunkLength - 1 ; i >= 0 ; i--) {
-                filter.add(new WildcardFilter(names().createIndexNameTerm(prefix.charAt(i) + wildcardPart)), BooleanClause.Occur.MUST);
+                filter.add(new WildcardFilter(names().createIndexNameTerm(prefixes.charAt(i) + wildcardPart)), BooleanClause.Occur.MUST);
             }
             if (sizeValue % chunkLength != 0) {
                 // If the size is not dividible by chunkLength,
                 // we still have a last chunk, but that has a shorter length
-                filter.add(new WildcardFilter(names().createIndexNameTerm(prefix.charAt(sizeValue/chunkLength+1) + wildcardPart.substring(0, sizeValue % chunkLength))), BooleanClause.Occur.MUST);
+                filter.add(new WildcardFilter(names().createIndexNameTerm(prefixes.charAt(sizeValue/chunkLength+1) + wildcardPart.substring(0, sizeValue % chunkLength))), BooleanClause.Occur.MUST);
             }
             return filter;
-        }
-        // Check variable size and lengths
-        if (sizeIsVariable) {
-            if (!includeLower && !includeUpper
-                    || includeLower && includeUpper && lowerTerm.length() != upperTerm.length())
-                return null;
-        } else {
-            if (includeLower && lowerTerm.length() != sizeValue
-                    || includeUpper && upperTerm.length() != sizeValue)
-                return null;
         }
         // Check for emptyness
         if (lowerTerm != null && upperTerm != null) {
@@ -609,6 +620,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         Iterator<String> uppers = upperTerms.iterator();
         String currLower = null;
         String currUpper = null;
+        int remainingLowerSize = sizeIsVariable ? 0 : sizeValue;
+        int remainingUpperSize = sizeIsVariable ? 0 : sizeValue;
 
         // First, the common prefix
         while (lowers.hasNext() && uppers.hasNext()) {
@@ -621,6 +634,8 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             if (!currLower.equals(currUpper))
                 break;
             topLevelAndFilter.add(new TermFilter(names().createIndexNameTerm(currLower)), BooleanClause.Occur.MUST);
+            remainingLowerSize -= currLower.length() - 1;
+            remainingUpperSize -= currUpper.length() - 1;
         }
 
         String subPrefixLower = currLower;
@@ -634,6 +649,7 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
         // Handle the first diverging token of the lowerTerm (if it's not also the last available!)
         if (lowers.hasNext()) {
             lastFilter.add(new TermFilter(names().createIndexNameTerm(currLower)), BooleanClause.Occur.MUST);
+            remainingLowerSize -= currLower.length() - 1;
             currLower = lowers.next();
         }
         secondLevelOrFilter.add(lastFilter, BooleanClause.Occur.SHOULD);
@@ -646,18 +662,30 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             nextFilter.add(new TermFilter(names().createIndexNameTerm(currLower)), BooleanClause.Occur.MUST);
             orFilter.add(nextFilter, BooleanClause.Occur.SHOULD);
             lastFilter = nextFilter;
+            remainingLowerSize -= currLower.length() - 1;
             currLower = lowers.next();
         }
         // Handle the last token of the lowerTerm
-        lastFilter.add(new TermRangeLengthFilter(names().indexName(), currLower, luceneTermUpperBound(currLower), includeLower, false, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.MUST);
+        if (remainingLowerSize < 0)
+            lastFilter.add(new TermRangeLengthFilter(names().indexName(), currLower, luceneTermUpperBound(currLower), includeLower, false, 0, 1 + chunkLength), BooleanClause.Occur.MUST);
+        else if (remainingLowerSize < chunkLength)
+            lastFilter.add(new TermRangeLengthFilter(names().indexName(), currLower, luceneTermUpperBound(currLower), includeLower, false, 1 + remainingLowerSize, 1 + remainingLowerSize), BooleanClause.Occur.MUST);
+        else
+            lastFilter.add(new TermRangeLengthFilter(names().indexName(), currLower, luceneTermUpperBound(currLower), includeLower, false, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.MUST);
 
         // Range from the non prefix part of the lowerTerm to the non prefix part of the upperTerm
-        secondLevelOrFilter.add(new TermRangeLengthFilter(names().indexName(), subPrefixLower, currUpper, false, false, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.SHOULD);
+        if (remainingUpperSize < 0)
+            secondLevelOrFilter.add(new TermRangeLengthFilter(names().indexName(), subPrefixLower, currUpper, false, false, 0, 1 + chunkLength), BooleanClause.Occur.SHOULD);
+        else if (remainingUpperSize < chunkLength)
+            secondLevelOrFilter.add(new TermRangeLengthFilter(names().indexName(), subPrefixLower, currUpper, false, false, 1 + remainingUpperSize, 1 + remainingUpperSize), BooleanClause.Occur.SHOULD);
+        else
+            secondLevelOrFilter.add(new TermRangeLengthFilter(names().indexName(), subPrefixLower, currUpper, false, false, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.SHOULD);
 
         lastFilter = new BooleanFilter();
         // Handle the first diverging token of the upperTerm (if it's not also the last available!)
         if (uppers.hasNext()) {
             lastFilter.add(new TermFilter(names().createIndexNameTerm(currUpper)), BooleanClause.Occur.MUST);
+            remainingUpperSize -= currUpper.length() - 1;
             currUpper = uppers.next();
         }
         secondLevelOrFilter.add(lastFilter, BooleanClause.Occur.SHOULD);
@@ -670,17 +698,23 @@ public class HashSplitterFieldMapper extends StringFieldMapper implements Custom
             nextFilter.add(new TermFilter(names().createIndexNameTerm(currUpper)), BooleanClause.Occur.MUST);
             orFilter.add(nextFilter, BooleanClause.Occur.SHOULD);
             lastFilter = nextFilter;
+            remainingUpperSize -= currUpper.length() - 1;
             currUpper = uppers.next();
         }
         // Handle the last token of the upperTerm
-        lastFilter.add(new TermRangeLengthFilter(names().indexName(), luceneTermLowerBound(currUpper), currUpper, false, includeUpper, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.MUST);
+        if (remainingUpperSize < 0)
+            lastFilter.add(new TermRangeLengthFilter(names().indexName(), luceneTermLowerBound(currUpper), currUpper, false, includeUpper, 0, 1 + chunkLength), BooleanClause.Occur.MUST);
+        else if (remainingUpperSize < chunkLength)
+            lastFilter.add(new TermRangeLengthFilter(names().indexName(), luceneTermLowerBound(currUpper), currUpper, false, includeUpper, 1 + remainingUpperSize, 1 + remainingUpperSize), BooleanClause.Occur.MUST);
+        else
+            lastFilter.add(new TermRangeLengthFilter(names().indexName(), luceneTermLowerBound(currUpper), currUpper, false, includeUpper, 1 + chunkLength, 1 + chunkLength), BooleanClause.Occur.MUST);
 
         return topLevelAndFilter;
     }
     private String luceneTermUpperBound(String term) {
         // Lucene terms are ordered lexicographically (by UTF-16 character code)
         // so we should not use:
-        //   return Character.toString(prefix.charAt((prefix.indexOf(term.charAt(0))+1)%prefix.length()));
+        //   return Character.toString(prefixes.charAt((prefixes.indexOf(term.charAt(0))+1)%prefixes.length()));
         // that will get the next *prefix* (the prefix for the *lower level*)
         // but merely the next *char*!
         return Character.toString((char) (term.charAt(0) + 1));
